@@ -9,7 +9,7 @@ interface Sale {
   _id: string;
   tripId: {
     tripDate: string;
-  };
+  } | null;
   productId: {
     name: string;
     sellingPrice: number;
@@ -21,6 +21,7 @@ interface Sale {
   paymentStatus: string;
   customerName: string;
   customerPhone: string;
+  saleType?: string;
   createdAt: string;
 }
 
@@ -49,6 +50,7 @@ const Sales: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [saleTypeFilter, setSaleTypeFilter] = useState('all');
   const [dateRange, setDateRange] = useState({
     startDate: '',
     endDate: ''
@@ -74,6 +76,14 @@ const Sales: React.FC = () => {
       filtered = filtered.filter(sale => sale.paymentStatus === statusFilter);
     }
 
+    if (saleTypeFilter !== 'all') {
+      if (saleTypeFilter === 'standalone') {
+        filtered = filtered.filter(sale => !sale.tripId);
+      } else if (saleTypeFilter === 'trip') {
+        filtered = filtered.filter(sale => sale.tripId);
+      }
+    }
+
     if (dateRange.startDate && dateRange.endDate) {
       filtered = filtered.filter(sale => {
         const saleDate = new Date(sale.createdAt).toISOString().split('T')[0];
@@ -82,7 +92,7 @@ const Sales: React.FC = () => {
     }
 
     setFilteredSales(filtered);
-  }, [sales, searchTerm, paymentFilter, statusFilter, dateRange]);
+  }, [sales, searchTerm, paymentFilter, statusFilter, saleTypeFilter, dateRange]);
 
   const fetchSales = async () => {
     try {
@@ -90,6 +100,7 @@ const Sales: React.FC = () => {
       setSales(response.data);
     } catch (error) {
       toast.error('Failed to fetch sales');
+      console.error('Fetch sales error:', error);
     } finally {
       setLoading(false);
     }
@@ -104,7 +115,7 @@ const Sales: React.FC = () => {
       const response = await api.get(`/sales/summary?${params}`);
       setSummary(response.data);
     } catch (error) {
-      console.error('Failed to fetch sales summary');
+      console.error('Failed to fetch sales summary:', error);
     }
   };
 
@@ -123,6 +134,22 @@ const Sales: React.FC = () => {
       case 'UPI': return 'bg-blue-500/20 text-blue-300';
       case 'Card': return 'bg-purple-500/20 text-purple-300';
       default: return 'bg-gray-500/20 text-gray-300';
+    }
+  };
+
+  const getSaleTypeDisplay = (sale: Sale) => {
+    if (sale.tripId) {
+      return {
+        text: 'Trip Sale',
+        color: 'bg-blue-500/20 text-blue-300',
+        date: new Date(sale.tripId.tripDate).toLocaleDateString()
+      };
+    } else {
+      return {
+        text: 'Mobile Sale',
+        color: 'bg-purple-500/20 text-purple-300',
+        date: 'Standalone'
+      };
     }
   };
 
@@ -197,7 +224,7 @@ const Sales: React.FC = () => {
 
         {/* Filters */}
         <div className="bg-white/10 backdrop-blur-lg rounded-xl border border-white/20 p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
               <input
@@ -231,6 +258,16 @@ const Sales: React.FC = () => {
               <option value="failed">Failed</option>
             </select>
 
+            <select
+              value={saleTypeFilter}
+              onChange={(e) => setSaleTypeFilter(e.target.value)}
+              className="px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Sale Types</option>
+              <option value="standalone">Mobile Sales</option>
+              <option value="trip">Trip Sales</option>
+            </select>
+
             <input
               type="date"
               value={dateRange.startDate}
@@ -259,41 +296,50 @@ const Sales: React.FC = () => {
                   <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Amount</th>
                   <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Payment</th>
                   <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Status</th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Type</th>
                   <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/10">
-                {filteredSales.map((sale) => (
-                  <tr key={sale._id} className="hover:bg-white/5 transition-colors">
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="text-sm font-medium text-white">{sale.productId.name}</p>
-                        <p className="text-sm text-gray-400">₹{sale.unitPrice} per unit</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="text-sm font-medium text-white">{sale.customerName || 'Walk-in Customer'}</p>
-                        <p className="text-sm text-gray-400">{sale.customerPhone || 'No phone'}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-300">{sale.quantitySold}</td>
-                    <td className="px-6 py-4 text-sm font-medium text-white">₹{sale.totalAmount}</td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getPaymentModeColor(sale.paymentMode)}`}>
-                        {sale.paymentMode}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getPaymentStatusColor(sale.paymentStatus)}`}>
-                        {sale.paymentStatus}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-300">
-                      {new Date(sale.createdAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
+                {filteredSales.map((sale) => {
+                  const saleType = getSaleTypeDisplay(sale);
+                  return (
+                    <tr key={sale._id} className="hover:bg-white/5 transition-colors">
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="text-sm font-medium text-white">{sale.productId.name}</p>
+                          <p className="text-sm text-gray-400">₹{sale.unitPrice} per unit</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="text-sm font-medium text-white">{sale.customerName || 'Walk-in Customer'}</p>
+                          <p className="text-sm text-gray-400">{sale.customerPhone || 'No phone'}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-300">{sale.quantitySold}</td>
+                      <td className="px-6 py-4 text-sm font-medium text-white">₹{sale.totalAmount}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getPaymentModeColor(sale.paymentMode)}`}>
+                          {sale.paymentMode}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getPaymentStatusColor(sale.paymentStatus)}`}>
+                          {sale.paymentStatus}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${saleType.color}`}>
+                          {saleType.text}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-300">
+                        {new Date(sale.createdAt).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -9,11 +9,11 @@ const router = express.Router();
 router.get('/', requirePermission('sales', 'view'), async (req, res) => {
   try {
     const sales = await TruckTripSales.find()
-      .populate('tripId', 'tripDate')
       .populate('productId', 'name sellingPrice')
       .sort({ createdAt: -1 });
     res.json(sales);
   } catch (error) {
+    console.error('Get sales error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -25,6 +25,7 @@ router.get('/trip/:tripId', requirePermission('sales', 'view'), async (req, res)
       .populate('productId', 'name sellingPrice');
     res.json(sales);
   } catch (error) {
+    console.error('Get sales by trip error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -32,37 +33,110 @@ router.get('/trip/:tripId', requirePermission('sales', 'view'), async (req, res)
 // Create sale (Mobile-friendly endpoint)
 router.post('/', requirePermission('sales', 'add'), async (req, res) => {
   try {
-    const { tripId, productId, quantitySold, paymentMode, customerName, customerPhone } = req.body;
-    
-    // Get product details for pricing
+    const { 
+      tripId, 
+      productId, 
+      quantitySold, 
+      unitPrice,
+      totalAmount,
+      paymentMode, 
+      paymentStatus,
+      customerName, 
+      customerPhone 
+    } = req.body;
+
+    console.log('Creating sale with data:', req.body);
+
+    // Validate required fields
+    if (!productId) {
+      return res.status(400).json({ message: 'Product ID is required' });
+    }
+
+    if (!quantitySold || quantitySold <= 0) {
+      return res.status(400).json({ message: 'Valid quantity sold is required' });
+    }
+
+    if (!paymentMode || !['Cash', 'UPI', 'Card'].includes(paymentMode)) {
+      return res.status(400).json({ message: 'Valid payment mode is required (Cash, UPI, or Card)' });
+    }
+
+    // Get product details for pricing and stock check
     const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    const sale = new TruckTripSales({
-      tripId,
-      productId,
-      quantitySold,
-      unitPrice: product.sellingPrice,
-      paymentMode,
-      customerName,
-      customerPhone,
-      paymentStatus: paymentMode === 'Cash' ? 'paid' : 'pending'
-    });
+    // Check stock availability
+    if (product.currentStock < quantitySold) {
+      return res.status(400).json({ 
+        message: `Insufficient stock. Available: ${product.currentStock}, Requested: ${quantitySold}` 
+      });
+    }
 
+    // Calculate prices if not provided
+    const finalUnitPrice = unitPrice || product.sellingPrice;
+    const finalTotalAmount = totalAmount || (finalUnitPrice * quantitySold);
+
+    // Create sale record
+    const saleData = {
+      tripId: tripId || null, // Allow null for standalone sales
+      productId,
+      quantitySold: Number(quantitySold),
+      unitPrice: Number(finalUnitPrice),
+      totalAmount: Number(finalTotalAmount),
+      paymentMode,
+      paymentStatus: paymentStatus || (paymentMode === 'Cash' ? 'paid' : 'pending'),
+      customerName: customerName?.trim() || null,
+      customerPhone: customerPhone?.trim() || null
+    };
+
+    console.log('Creating sale with processed data:', saleData);
+
+    const sale = new TruckTripSales(saleData);
     await sale.save();
-    
-    // Update product stock
-    product.currentStock -= quantitySold;
-    await product.save();
+
+    // Note: Stock update is handled separately by the frontend
+    // This allows for better error handling and transaction control
     
     const populatedSale = await TruckTripSales.findById(sale._id)
       .populate('productId', 'name sellingPrice');
+      // Removed tripId population since TruckTrip model isn't registered
     
+    console.log('Sale created successfully:', populatedSale._id);
     res.status(201).json(populatedSale);
+
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Create sale error:', error);
+    
+    // Handle specific MongoDB errors
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(e => e.message);
+      return res.status(400).json({ 
+        message: 'Validation error', 
+        errors,
+        details: error.message 
+      });
+    }
+
+    if (error.name === 'CastError') {
+      return res.status(400).json({ 
+        message: 'Invalid ID format provided',
+        details: error.message 
+      });
+    }
+
+    // Handle duplicate key errors
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        message: 'Duplicate entry detected',
+        details: error.message 
+      });
+    }
+
+    res.status(500).json({ 
+      message: 'Server error while creating sale', 
+      error: error.message 
+    });
   }
 });
 
@@ -81,6 +155,13 @@ router.put('/:id', requirePermission('sales', 'update'), async (req, res) => {
     
     res.json(sale);
   } catch (error) {
+    console.error('Update sale error:', error);
+    
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(e => e.message);
+      return res.status(400).json({ message: 'Validation error', errors });
+    }
+
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -98,11 +179,13 @@ router.delete('/:id', requirePermission('sales', 'delete'), async (req, res) => 
     if (product) {
       product.currentStock += sale.quantitySold;
       await product.save();
+      console.log(`Stock restored for product ${product.name}: +${sale.quantitySold}`);
     }
 
     await TruckTripSales.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Sale deleted successfully' });
+    res.json({ message: 'Sale deleted successfully and stock restored' });
   } catch (error) {
+    console.error('Delete sale error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -156,6 +239,7 @@ router.get('/summary', requirePermission('sales', 'view'), async (req, res) => {
       cardSales: 0
     });
   } catch (error) {
+    console.error('Get sales summary error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

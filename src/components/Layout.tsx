@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { 
   Menu, 
   X, 
@@ -29,10 +30,12 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
   const { user, logout, hasPermission } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -79,6 +82,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const toggleProfileDropdown = () => {
+    if (!profileDropdownOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY + 8,
+        right: window.innerWidth - rect.right + window.scrollX
+      });
+    }
     setProfileDropdownOpen(!profileDropdownOpen);
   };
 
@@ -135,7 +145,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Main content */}
       <div className="lg:ml-64">
         {/* Top header */}
-        <header className="bg-white/10 backdrop-blur-lg border-b border-white/20">
+        <header className="bg-white/10 backdrop-blur-lg border-b border-white/20 relative">
           <div className="flex items-center justify-between h-16 px-4 sm:px-6">
             <button
               onClick={() => setSidebarOpen(true)}
@@ -145,8 +155,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </button>
 
             <div className="flex items-center space-x-4">
-              <div className="relative" ref={dropdownRef}>
+              {/* Profile Dropdown Button */}
+              <div className="relative">
                 <button
+                  ref={buttonRef}
                   onClick={toggleProfileDropdown}
                   className="flex items-center space-x-3 text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900 rounded-lg px-2 py-1"
                   aria-expanded={profileDropdownOpen}
@@ -164,65 +176,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     profileDropdownOpen ? 'rotate-180' : ''
                   }`} />
                 </button>
-
-                {/* Dropdown Menu */}
-                <div className={`
-                  absolute right-0 top-full mt-2 w-56 bg-white/10 backdrop-blur-lg rounded-xl shadow-xl 
-                  border border-white/20 transform transition-all duration-200 origin-top-right z-50
-                  ${profileDropdownOpen 
-                    ? 'opacity-100 scale-100 visible translate-y-0' 
-                    : 'opacity-0 scale-95 invisible -translate-y-2'
-                  }
-                `}>
-                  {/* User Info Section */}
-                  <div className="px-4 py-3 border-b border-white/10">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
-                        <span className="text-sm font-medium text-white">
-                          {user?.firstName.charAt(0)}{user?.lastName.charAt(0)}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white">
-                          {user?.firstName} {user?.lastName}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {user?.email}
-                        </p>
-                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full mt-1 ${
-                          user?.role === 'admin' 
-                            ? 'bg-purple-500/20 text-purple-300' 
-                            : 'bg-blue-500/20 text-blue-300'
-                        }`}>
-                          {user?.role}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Menu Items */}
-                  <div className="py-2">
-                    <Link
-                      to="/profile"
-                      className="flex items-center px-4 py-3 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors duration-150"
-                      onClick={() => setProfileDropdownOpen(false)}
-                    >
-                      <User className="mr-3 h-4 w-4" />
-                      <span>My Profile</span>
-                    </Link>
-                    
-                    <button
-                      onClick={() => {
-                        setProfileDropdownOpen(false);
-                        handleLogout();
-                      }}
-                      className="flex items-center w-full px-4 py-3 text-sm text-gray-300 hover:bg-red-500/10 hover:text-red-300 transition-colors duration-150"
-                    >
-                      <LogOut className="mr-3 h-4 w-4" />
-                      <span>Sign Out</span>
-                    </button>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -233,6 +186,78 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           {children}
         </main>
       </div>
+
+      {/* Portal Dropdown - Renders at document root to avoid z-index issues */}
+      {profileDropdownOpen && createPortal(
+        <>
+          {/* Invisible overlay to capture outside clicks */}
+          <div 
+            className="fixed inset-0 z-[9998]"
+            onClick={() => setProfileDropdownOpen(false)}
+          />
+          
+          {/* Dropdown Menu rendered at document root */}
+          <div 
+            ref={dropdownRef}
+            className="fixed w-56 bg-white/10 backdrop-blur-lg rounded-xl shadow-xl border border-white/20 animate-in fade-in-0 zoom-in-95 duration-200"
+            style={{ 
+              zIndex: 9999,
+              top: dropdownPosition.top,
+              right: dropdownPosition.right
+            }}
+          >
+            {/* User Info Section */}
+            <div className="px-4 py-3 border-b border-white/10">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
+                  <span className="text-sm font-medium text-white">
+                    {user?.firstName.charAt(0)}{user?.lastName.charAt(0)}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white">
+                    {user?.firstName} {user?.lastName}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {user?.email}
+                  </p>
+                  <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full mt-1 ${
+                    user?.role === 'admin' 
+                      ? 'bg-purple-500/20 text-purple-300' 
+                      : 'bg-blue-500/20 text-blue-300'
+                  }`}>
+                    {user?.role}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Menu Items */}
+            <div className="py-2">
+              <Link
+                to="/profile"
+                className="flex items-center px-4 py-3 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors duration-150"
+                onClick={() => setProfileDropdownOpen(false)}
+              >
+                <User className="mr-3 h-4 w-4" />
+                <span>My Profile</span>
+              </Link>
+              
+              <button
+                onClick={() => {
+                  setProfileDropdownOpen(false);
+                  handleLogout();
+                }}
+                className="flex items-center w-full px-4 py-3 text-sm text-gray-300 hover:bg-red-500/10 hover:text-red-300 transition-colors duration-150"
+              >
+                <LogOut className="mr-3 h-4 w-4" />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
     </div>
   );
 };

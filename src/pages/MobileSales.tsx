@@ -62,6 +62,7 @@ const MobileSales: React.FC = () => {
       setProducts(response.data);
     } catch (error) {
       toast.error('Failed to fetch products');
+      console.error('Fetch products error:', error);
     } finally {
       setLoading(false);
     }
@@ -133,39 +134,114 @@ const MobileSales: React.FC = () => {
     return cart.reduce((total, item) => total + item.quantity, 0);
   };
 
-  const handleSubmitSale = async () => {
+  const validateSaleData = () => {
     if (cart.length === 0) {
-      toast.error('Cart is empty');
+      throw new Error('Cart is empty');
+    }
+
+    // Check stock availability for all items
+    for (const item of cart) {
+      const currentProduct = products.find(p => p._id === item.product._id);
+      if (!currentProduct) {
+        throw new Error(`Product ${item.product.name} not found`);
+      }
+      if (currentProduct.currentStock < item.quantity) {
+        throw new Error(`Insufficient stock for ${item.product.name}. Available: ${currentProduct.currentStock}, Required: ${item.quantity}`);
+      }
+    }
+
+    // Validate payment mode
+    if (!['Cash', 'UPI', 'Card'].includes(paymentMode)) {
+      throw new Error('Invalid payment mode');
+    }
+  };
+
+  const handleSubmitSale = async () => {
+    try {
+      validateSaleData();
+    } catch (error: any) {
+      toast.error(error.message);
       return;
     }
 
     setSubmitting(true);
 
     try {
-      // Create individual sales for each cart item
-      const salesPromises = cart.map(item =>
-        api.post('/sales', {
-          tripId: null, // This would be set if part of a truck trip
-          productId: item.product._id,
-          quantitySold: item.quantity,
-          paymentMode,
-          customerName: customerInfo.name || undefined,
-          customerPhone: customerInfo.phone || undefined
-        })
-      );
+      // Process each sale individually with better error handling
+      const salesResults = [];
+      const stockUpdates = [];
 
-      await Promise.all(salesPromises);
+      for (const item of cart) {
+        try {
+          // Create sale without tripId (for standalone sales)
+          const saleData = {
+            productId: item.product._id,
+            quantitySold: item.quantity,
+            unitPrice: item.product.sellingPrice,
+            totalAmount: item.totalPrice,
+            paymentMode,
+            paymentStatus: paymentMode === 'Cash' ? 'paid' : 'pending',
+            customerName: customerInfo.name.trim() || undefined,
+            customerPhone: customerInfo.phone.trim() || undefined
+          };
+
+          console.log('Creating sale with data:', saleData);
+
+          const saleResponse = await api.post('/sales', saleData);
+          salesResults.push(saleResponse.data);
+
+          // Prepare stock update
+          stockUpdates.push({
+            productId: item.product._id,
+            quantity: item.quantity,
+            operation: 'subtract'
+          });
+
+        } catch (error: any) {
+          console.error(`Failed to create sale for ${item.product.name}:`, error);
+          
+          // If this is a validation error, show specific message
+          if (error.response?.status === 400) {
+            throw new Error(`Sale validation failed for ${item.product.name}: ${error.response.data.message}`);
+          } else if (error.response?.status === 403) {
+            throw new Error('You do not have permission to create sales');
+          } else {
+            throw new Error(`Failed to process sale for ${item.product.name}`);
+          }
+        }
+      }
+
+      // If all sales were successful, update stock levels
+      console.log('All sales created successfully, updating stock...');
       
-      // Clear cart and form
+      for (const stockUpdate of stockUpdates) {
+        try {
+          await api.patch(`/products/${stockUpdate.productId}/stock`, {
+            quantity: stockUpdate.quantity,
+            operation: stockUpdate.operation
+          });
+        } catch (error) {
+          console.error(`Failed to update stock for product ${stockUpdate.productId}:`, error);
+          // Continue with other stock updates even if one fails
+        }
+      }
+
+      // Clear cart and form on success
       setCart([]);
       setCustomerInfo({ name: '', phone: '' });
       
-      toast.success('Sale completed successfully!');
+      toast.success(`Sale completed successfully! ${salesResults.length} items sold for ₹${getTotalAmount()}`);
       
-      // Refresh products to update stock
-      fetchProducts();
-    } catch (error) {
-      toast.error('Failed to complete sale');
+      // Refresh products to update stock display
+      await fetchProducts();
+
+    } catch (error: any) {
+      console.error('Sale submission error:', error);
+      
+      // Show user-friendly error message
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to complete sale';
+      toast.error(errorMessage);
+      
     } finally {
       setSubmitting(false);
     }
