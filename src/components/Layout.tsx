@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Menu, 
@@ -32,6 +32,26 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, logout, hasPermission } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setProfileDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Close dropdown on route change
+  useEffect(() => {
+    setProfileDropdownOpen(false);
+  }, [location.pathname]);
 
   const navigationItems = [
     { name: 'Dashboard', href: '/', icon: Home, module: null, action: null },
@@ -56,6 +76,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const toggleProfileDropdown = () => {
+    setProfileDropdownOpen(!profileDropdownOpen);
   };
 
   return (
@@ -121,10 +145,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </button>
 
             <div className="flex items-center space-x-4">
-              <div className="relative">
+              <div className="relative" ref={dropdownRef}>
                 <button
-                  onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                  className="flex items-center space-x-3 text-gray-300 hover:text-white transition-colors"
+                  onClick={toggleProfileDropdown}
+                  className="flex items-center space-x-3 text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900 rounded-lg px-2 py-1"
+                  aria-expanded={profileDropdownOpen}
+                  aria-haspopup="true"
                 >
                   <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
                     <span className="text-sm font-medium text-white">
@@ -134,28 +160,69 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <span className="hidden md:block text-sm font-medium">
                     {user?.firstName} {user?.lastName}
                   </span>
-                  <ChevronDown className="h-4 w-4" />
+                  <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${
+                    profileDropdownOpen ? 'rotate-180' : ''
+                  }`} />
                 </button>
 
-                {profileDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white/10 backdrop-blur-lg rounded-lg shadow-lg border border-white/20">
+                {/* Dropdown Menu */}
+                <div className={`
+                  absolute right-0 top-full mt-2 w-56 bg-white/10 backdrop-blur-lg rounded-xl shadow-xl 
+                  border border-white/20 transform transition-all duration-200 origin-top-right z-50
+                  ${profileDropdownOpen 
+                    ? 'opacity-100 scale-100 visible translate-y-0' 
+                    : 'opacity-0 scale-95 invisible -translate-y-2'
+                  }
+                `}>
+                  {/* User Info Section */}
+                  <div className="px-4 py-3 border-b border-white/10">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
+                        <span className="text-sm font-medium text-white">
+                          {user?.firstName.charAt(0)}{user?.lastName.charAt(0)}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-white">
+                          {user?.firstName} {user?.lastName}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {user?.email}
+                        </p>
+                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full mt-1 ${
+                          user?.role === 'admin' 
+                            ? 'bg-purple-500/20 text-purple-300' 
+                            : 'bg-blue-500/20 text-blue-300'
+                        }`}>
+                          {user?.role}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Menu Items */}
+                  <div className="py-2">
                     <Link
                       to="/profile"
-                      className="flex items-center px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-white"
+                      className="flex items-center px-4 py-3 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors duration-150"
                       onClick={() => setProfileDropdownOpen(false)}
                     >
                       <User className="mr-3 h-4 w-4" />
-                      Profile
+                      <span>My Profile</span>
                     </Link>
+                    
                     <button
-                      onClick={handleLogout}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-white"
+                      onClick={() => {
+                        setProfileDropdownOpen(false);
+                        handleLogout();
+                      }}
+                      className="flex items-center w-full px-4 py-3 text-sm text-gray-300 hover:bg-red-500/10 hover:text-red-300 transition-colors duration-150"
                     >
                       <LogOut className="mr-3 h-4 w-4" />
-                      Logout
+                      <span>Sign Out</span>
                     </button>
                   </div>
-                )}
+                </div>
               </div>
             </div>
           </div>

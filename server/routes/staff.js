@@ -37,6 +37,35 @@ const upload = multer({
   }
 });
 
+// Generate next employee ID endpoint
+router.get('/next-employee-id', requirePermission('staff', 'view'), async (req, res) => {
+  try {
+    const currentYear = new Date().getFullYear();
+    const prefix = `EMP${currentYear}`;
+    
+    // Find the latest employee ID for the current year
+    const latestStaff = await Staff.findOne({
+      employeeId: { $regex: `^${prefix}` }
+    }).sort({ employeeId: -1 });
+
+    let sequence = 1;
+    
+    if (latestStaff && latestStaff.employeeId) {
+      // Extract sequence number from latest employee ID
+      const lastSequence = parseInt(latestStaff.employeeId.replace(prefix, ''));
+      sequence = lastSequence + 1;
+    }
+    
+    // Generate next employee ID with zero-padded sequence (4 digits)
+    const nextEmployeeId = `${prefix}${sequence.toString().padStart(4, '0')}`;
+    
+    res.json({ employeeId: nextEmployeeId });
+  } catch (error) {
+    console.error('Error generating employee ID:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Get all staff
 router.get('/', requirePermission('staff', 'view'), async (req, res) => {
   try {
@@ -44,9 +73,11 @@ router.get('/', requirePermission('staff', 'view'), async (req, res) => {
       .populate('userId', 'username email')
       .populate('departmentId', 'name')
       .populate('jobRoles', 'name')
-      .select('-password');
+      .select('-password')
+      .sort({ createdAt: -1 });
     res.json(staff);
   } catch (error) {
+    console.error('Error fetching staff:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -70,6 +101,7 @@ router.get('/:id', requirePermission('staff', 'view'), async (req, res) => {
 
     res.json({ ...staff.toObject(), documents });
   } catch (error) {
+    console.error('Error fetching staff by ID:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -77,14 +109,48 @@ router.get('/:id', requirePermission('staff', 'view'), async (req, res) => {
 // Create staff
 router.post('/', requirePermission('staff', 'add'), upload.single('profilePhoto'), async (req, res) => {
   try {
-    const staffData = req.body;
+    console.log('Creating staff with data:', req.body);
+    console.log('File uploaded:', req.file);
+
+    const staffData = { ...req.body };
     
+    // Remove employeeId from request data as it will be auto-generated
+    delete staffData.employeeId;
+    
+    // Parse jobRoles if it's a JSON string
+    if (typeof staffData.jobRoles === 'string') {
+      try {
+        staffData.jobRoles = JSON.parse(staffData.jobRoles);
+      } catch (e) {
+        console.error('Error parsing jobRoles:', e);
+        staffData.jobRoles = [];
+      }
+    }
+    
+    // Convert salary to number if provided
+    if (staffData.salary && typeof staffData.salary === 'string') {
+      staffData.salary = parseFloat(staffData.salary);
+      if (isNaN(staffData.salary)) {
+        delete staffData.salary;
+      }
+    }
+    
+    // Convert dateOfJoining to Date
+    if (staffData.dateOfJoining) {
+      staffData.dateOfJoining = new Date(staffData.dateOfJoining);
+    }
+    
+    // Handle profile photo
     if (req.file) {
       staffData.profilePhoto = '/uploads/staff/profiles/' + req.file.filename;
     }
 
+    console.log('Processed staff data:', staffData);
+
     const staff = new Staff(staffData);
     await staff.save();
+    
+    console.log('Staff saved with ID:', staff._id);
     
     const populatedStaff = await Staff.findById(staff._id)
       .populate('userId', 'username email')
@@ -94,8 +160,14 @@ router.post('/', requirePermission('staff', 'add'), upload.single('profilePhoto'
     
     res.status(201).json(populatedStaff);
   } catch (error) {
+    console.error('Error creating staff:', error);
     if (error.code === 11000) {
-      res.status(400).json({ message: 'Employee ID already exists' });
+      // Check which field caused the duplicate error
+      const field = Object.keys(error.keyPattern)[0];
+      res.status(400).json({ message: `${field} already exists` });
+    } else if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(e => e.message);
+      res.status(400).json({ message: 'Validation error', errors });
     } else {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
@@ -105,7 +177,35 @@ router.post('/', requirePermission('staff', 'add'), upload.single('profilePhoto'
 // Update staff
 router.put('/:id', requirePermission('staff', 'update'), upload.single('profilePhoto'), async (req, res) => {
   try {
-    const { password, ...updateData } = req.body;
+    console.log('Updating staff with data:', req.body);
+    
+    const { password, employeeId, ...updateData } = req.body;
+    
+    // Don't allow manual employee ID changes after creation
+    // Employee ID can only be auto-generated during creation
+    
+    // Parse jobRoles if it's a JSON string
+    if (typeof updateData.jobRoles === 'string') {
+      try {
+        updateData.jobRoles = JSON.parse(updateData.jobRoles);
+      } catch (e) {
+        console.error('Error parsing jobRoles:', e);
+        updateData.jobRoles = [];
+      }
+    }
+    
+    // Convert salary to number if provided
+    if (updateData.salary && typeof updateData.salary === 'string') {
+      updateData.salary = parseFloat(updateData.salary);
+      if (isNaN(updateData.salary)) {
+        delete updateData.salary;
+      }
+    }
+    
+    // Convert dateOfJoining to Date
+    if (updateData.dateOfJoining) {
+      updateData.dateOfJoining = new Date(updateData.dateOfJoining);
+    }
     
     if (req.file) {
       updateData.profilePhoto = '/uploads/staff/profiles/' + req.file.filename;
@@ -118,7 +218,7 @@ router.put('/:id', requirePermission('staff', 'update'), upload.single('profileP
 
     Object.assign(staff, updateData);
     
-    if (password) {
+    if (password && password.trim() !== '') {
       staff.password = password;
     }
     
@@ -132,7 +232,13 @@ router.put('/:id', requirePermission('staff', 'update'), upload.single('profileP
     
     res.json(populatedStaff);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Error updating staff:', error);
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(e => e.message);
+      res.status(400).json({ message: 'Validation error', errors });
+    } else {
+      res.status(500).json({ message: 'Server error', error: error.message });
+    }
   }
 });
 
@@ -149,6 +255,7 @@ router.delete('/:id', requirePermission('staff', 'delete'), async (req, res) => 
 
     res.json({ message: 'Staff deleted successfully' });
   } catch (error) {
+    console.error('Error deleting staff:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -176,6 +283,7 @@ router.post('/:id/documents', requirePermission('staff', 'update'), upload.singl
 
     res.status(201).json(populatedDocument);
   } catch (error) {
+    console.error('Error uploading document:', error);
     if (error.code === 11000) {
       res.status(400).json({ message: 'Document type already exists for this staff member' });
     } else {
@@ -191,6 +299,7 @@ router.get('/:id/documents', requirePermission('staff', 'view'), async (req, res
       .populate('documentTypeId', 'name');
     res.json(documents);
   } catch (error) {
+    console.error('Error fetching documents:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -209,6 +318,7 @@ router.delete('/:staffId/documents/:documentId', requirePermission('staff', 'del
 
     res.json({ message: 'Document deleted successfully' });
   } catch (error) {
+    console.error('Error deleting document:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

@@ -1,0 +1,199 @@
+/* Dropdown Styles for React Components */
+
+/* Base dropdown container */
+.dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+
+/* Dropdown menu styling */
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 9999;
+  min-width: 14rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  transform-origin: top right;
+  transition: all 0.2s ease-in-out;
+}
+
+/* Dropdown menu states */
+.dropdown-menu.show {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.dropdown-menu.hide {
+  opacity: 0;
+  transform: scale(0.95) translateY(-8px);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Dropdown items */
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: rgba(209, 213, 219, 1);
+  text-decoration: none;
+  transition: all 0.15s ease-in-out;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 1);
+}
+
+.dropdown-item:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 1);
+}
+
+/* Special styling for logout item */
+.dropdown-item.logout:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: rgba(252, 165, 165, 1);
+}
+
+/* Dropdown divider */
+.dropdown-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 0.5rem 0;
+}
+
+/* Select dropdown styling */
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
+}
+
+select:focus {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%233b82f6' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+}
+
+/* Select options styling */
+select option {
+  background: rgba(30, 41, 59, 1);
+  color: rgba(255, 255, 255, 1);
+  padding: 0.5rem;
+}
+
+select option:hover,
+select option:checked {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+/* Custom scrollbar for dropdowns */
+.dropdown-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dropdown-menu::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.dropdown-menu::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.dropdown-menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Animation keyframes */
+@keyframes dropdown-show {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes dropdown-hide {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95) translateY(-8px);
+  }
+}
+
+/* Apply animations */
+.dropdown-menu.animate-in {
+  animation: dropdown-show 0.2s ease-out forwards;
+}
+
+.dropdown-menu.animate-out {
+  animation: dropdown-hide 0.15s ease-in forwards;
+}
+
+/* Focus management */
+.dropdown-menu {
+  outline: none;
+}
+
+.dropdown-menu:focus-within {
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .dropdown-menu {
+    left: 0;
+    right: 0;
+    margin: 0 1rem;
+    width: auto;
+    min-width: auto;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .dropdown-menu {
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    background: rgba(0, 0, 0, 0.9);
+  }
+  
+  .dropdown-item {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .dropdown-menu,
+  .dropdown-item {
+    transition: none;
+  }
+  
+  .dropdown-menu.animate-in,
+  .dropdown-menu.animate-out {
+    animation: none;
+  }
+}

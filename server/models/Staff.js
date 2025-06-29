@@ -9,9 +9,9 @@ const staffSchema = new mongoose.Schema({
   },
   employeeId: {
     type: String,
-    required: true,
     unique: true,
     trim: true
+    // Remove required: true as we'll auto-generate it
   },
   mobileNumber: {
     type: String,
@@ -78,11 +78,17 @@ const staffSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Hash password before saving
+// Auto-generate employee ID before saving
 staffSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  
   try {
+    // Generate employee ID only if it's not already set
+    if (!this.employeeId) {
+      this.employeeId = await generateEmployeeId();
+    }
+
+    // Hash password only if it's modified
+    if (!this.isModified('password')) return next();
+    
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
     next();
@@ -90,6 +96,28 @@ staffSchema.pre('save', async function(next) {
     next(error);
   }
 });
+
+// Function to generate unique employee ID
+async function generateEmployeeId() {
+  const currentYear = new Date().getFullYear();
+  const prefix = `EMP${currentYear}`;
+  
+  // Find the latest employee ID for the current year
+  const latestStaff = await mongoose.model('Staff').findOne({
+    employeeId: { $regex: `^${prefix}` }
+  }).sort({ employeeId: -1 });
+
+  let sequence = 1;
+  
+  if (latestStaff && latestStaff.employeeId) {
+    // Extract sequence number from latest employee ID
+    const lastSequence = parseInt(latestStaff.employeeId.replace(prefix, ''));
+    sequence = lastSequence + 1;
+  }
+  
+  // Generate employee ID with zero-padded sequence (4 digits)
+  return `${prefix}${sequence.toString().padStart(4, '0')}`;
+}
 
 // Compare password method
 staffSchema.methods.comparePassword = async function(candidatePassword) {

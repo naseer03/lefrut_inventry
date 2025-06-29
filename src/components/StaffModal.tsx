@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload } from 'lucide-react';
+import { X, Upload, RefreshCw } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -75,6 +75,7 @@ const StaffModal: React.FC<StaffModalProps> = ({ staff, onClose, onSave }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
+  const [generatingEmployeeId, setGeneratingEmployeeId] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -94,6 +95,9 @@ const StaffModal: React.FC<StaffModalProps> = ({ staff, onClose, onSave }) => {
         status: staff.status,
         password: ''
       });
+    } else {
+      // Auto-generate employee ID for new staff
+      generateEmployeeId();
     }
   }, [staff]);
 
@@ -111,6 +115,23 @@ const StaffModal: React.FC<StaffModalProps> = ({ staff, onClose, onSave }) => {
       toast.error('Failed to fetch data');
     } finally {
       setDataLoading(false);
+    }
+  };
+
+  const generateEmployeeId = async () => {
+    if (staff) return; // Don't generate for existing staff
+    
+    setGeneratingEmployeeId(true);
+    try {
+      const response = await api.get('/staff/next-employee-id');
+      setFormData(prev => ({
+        ...prev,
+        employeeId: response.data.employeeId
+      }));
+    } catch (error) {
+      toast.error('Failed to generate employee ID');
+    } finally {
+      setGeneratingEmployeeId(false);
     }
   };
 
@@ -234,15 +255,35 @@ const StaffModal: React.FC<StaffModalProps> = ({ staff, onClose, onSave }) => {
 
             <div>
               <label className="block text-sm font-medium text-gray-200 mb-2">
-                Employee ID *
+                Employee ID
               </label>
-              <input
-                type="text"
-                value={formData.employeeId}
-                onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
-                required
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={formData.employeeId}
+                  readOnly={!staff} // Allow editing only for existing staff (in case manual correction needed)
+                  className={`flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    !staff ? 'cursor-not-allowed opacity-75' : ''
+                  }`}
+                  placeholder="Auto-generated"
+                />
+                {!staff && (
+                  <button
+                    type="button"
+                    onClick={generateEmployeeId}
+                    disabled={generatingEmployeeId}
+                    className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1"
+                    title="Regenerate Employee ID"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${generatingEmployeeId ? 'animate-spin' : ''}`} />
+                  </button>
+                )}
+              </div>
+              {!staff && (
+                <p className="text-xs text-gray-400 mt-1">
+                  Employee ID is auto-generated. Click refresh to generate a new one.
+                </p>
+              )}
             </div>
 
             <div>
@@ -422,7 +463,7 @@ const StaffModal: React.FC<StaffModalProps> = ({ staff, onClose, onSave }) => {
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || generatingEmployeeId}
               className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-lg font-medium transition-all disabled:opacity-50"
             >
               {loading ? 'Saving...' : 'Save Staff Member'}

@@ -1,3 +1,158 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom dropdown and form control styles */
+
+/* Fix for select dropdowns */
+select {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+select:focus {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  border-color: rgba(59, 130, 246, 1) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+/* Select option styling */
+select option {
+  background-color: rgba(30, 41, 59, 1) !important;
+  color: white !important;
+  padding: 8px !important;
+}
+
+select option:hover {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+}
+
+select option:checked {
+  background-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Custom scrollbar for better UI */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Fix for input fields */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="date"],
+textarea {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="tel"]:focus,
+input[type="date"]:focus,
+textarea:focus {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  border-color: rgba(59, 130, 246, 1) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(156, 163, 175, 1) !important;
+}
+
+/* Fix for checkboxes and radio buttons */
+input[type="checkbox"],
+input[type="radio"] {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+  background-color: rgba(59, 130, 246, 1) !important;
+  border-color: rgba(59, 130, 246, 1) !important;
+}
+
+input[type="checkbox"]:focus,
+input[type="radio"]:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+/* Ensure dropdown menus are always visible when opened */
+.dropdown-menu-visible {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: scale(1) translateY(0) !important;
+  pointer-events: auto !important;
+  z-index: 9999 !important;
+}
+
+/* Animation for smooth dropdown transitions */
+.dropdown-transition {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Backdrop blur support for older browsers */
+@supports not (backdrop-filter: blur(12px)) {
+  .backdrop-blur-lg {
+    background-color: rgba(30, 41, 59, 0.8) !important;
+  }
+}
+
+/* Fix for modal overlays */
+.modal-overlay {
+  backdrop-filter: blur(8px) !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Ensure text remains readable */
+.text-contrast {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* High contrast mode improvements */
+@media (prefers-contrast: high) {
+  select,
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="date"],
+  textarea {
+    border-width: 2px !important;
+    border-color: rgba(255, 255, 255, 0.8) !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
