@@ -18,6 +18,9 @@ import Categories from './pages/Categories';
 import Units from './pages/Units';
 import Sales from './pages/Sales';
 import MobileSales from './pages/MobileSales';
+import TruckManagement from './pages/TruckManagement';
+import RoutesPage from './pages/Routes';
+import Reports from './pages/Reports';
 
 function App() {
   return (
@@ -89,6 +92,21 @@ function App() {
             <Route path="/mobile-sales" element={
               <ProtectedRoute requiredModule="sales" requiredAction="add">
                 <MobileSales />
+              </ProtectedRoute>
+            } />
+            <Route path="/trucks" element={
+              <ProtectedRoute requiredModule="trucks" requiredAction="view">
+                <TruckManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/routes" element={
+              <ProtectedRoute requiredModule="routes" requiredAction="view">
+                <RoutesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/reports" element={
+              <ProtectedRoute requiredModule="sales" requiredAction="view">
+                <Reports />
               </ProtectedRoute>
             } />
             <Route path="/profile" element={

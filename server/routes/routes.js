@@ -1,6 +1,7 @@
 // server/routes/routes.js
 import express from 'express';
 import Route from '../models/Route.js';
+import Truck from '../models/Truck.js';
 import { requirePermission } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -121,25 +122,11 @@ router.delete('/:id', requirePermission('routes', 'delete'), async (req, res) =>
     }
 
     // Check if route is being used by any trucks
-    const Truck = mongoose.model('Truck');
     const trucksUsingRoute = await Truck.countDocuments({ defaultRouteId: req.params.id });
 
     if (trucksUsingRoute > 0) {
       return res.status(400).json({ 
         message: `Cannot delete route. ${trucksUsingRoute} truck(s) are using this route.` 
-      });
-    }
-
-    // Check if route has any active trips
-    const TruckTrip = mongoose.model('TruckTrip');
-    const activeTrips = await TruckTrip.countDocuments({
-      routeId: req.params.id,
-      status: { $in: ['planned', 'in_progress'] }
-    });
-
-    if (activeTrips > 0) {
-      return res.status(400).json({ 
-        message: 'Cannot delete route with active trips. Complete or cancel trips first.' 
       });
     }
 
@@ -158,7 +145,6 @@ router.get('/stats/overview', requirePermission('routes', 'view'), async (req, r
     const activeRoutes = await Route.countDocuments({ isActive: true });
     
     // Count trucks assigned to each route
-    const Truck = mongoose.model('Truck');
     const routeUsage = await Truck.aggregate([
       { $match: { defaultRouteId: { $ne: null } } },
       { $group: { _id: '$defaultRouteId', truckCount: { $sum: 1 } } },

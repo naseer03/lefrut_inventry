@@ -19,7 +19,10 @@ import {
   Tag,
   Scale,
   ShoppingCart,
-  Smartphone
+  Smartphone,
+  Truck,
+  Navigation,
+  BarChart3
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -67,6 +70,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: 'Units', href: '/units', icon: Scale, module: 'units', action: 'view' },
     { name: 'Sales', href: '/sales', icon: ShoppingCart, module: 'sales', action: 'view' },
     { name: 'Mobile Sales', href: '/mobile-sales', icon: Smartphone, module: 'sales', action: 'add' },
+    { name: 'Trucks', href: '/trucks', icon: Truck, module: 'trucks', action: 'view' },
+    { name: 'Routes', href: '/routes', icon: Navigation, module: 'routes', action: 'view' },
+    { name: 'Reports', href: '/reports', icon: BarChart3, module: 'sales', action: 'view' },
     { name: 'Users', href: '/users', icon: Users, module: 'users', action: 'view' },
     { name: 'States', href: '/states', icon: MapPin, module: 'states', action: 'view' },
     { name: 'Permissions', href: '/permissions', icon: Shield, module: 'permissions', action: 'view' }

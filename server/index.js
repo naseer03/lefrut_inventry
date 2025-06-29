@@ -19,6 +19,9 @@ import productRoutes from './routes/products.js';
 import categoryRoutes from './routes/categories.js';
 import unitRoutes from './routes/units.js';
 import salesRoutes from './routes/sales.js';
+import truckRoutes from './routes/trucks.js';
+import routesRoutes from './routes/routes.js';
+import reportsRoutes from './routes/reports.js';
 
 // Middleware
 import { authenticateToken } from './middleware/auth.js';
@@ -79,6 +82,9 @@ app.use('/api/products', authenticateToken, productRoutes);
 app.use('/api/categories', authenticateToken, categoryRoutes);
 app.use('/api/units', authenticateToken, unitRoutes);
 app.use('/api/sales', authenticateToken, salesRoutes);
+app.use('/api/trucks', authenticateToken, truckRoutes);
+app.use('/api/routes', authenticateToken, routesRoutes);
+app.use('/api/reports', authenticateToken, reportsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
