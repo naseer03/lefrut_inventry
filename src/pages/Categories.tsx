@@ -125,7 +125,7 @@ const Categories: React.FC = () => {
                   <div className="w-16 h-16 bg-gradient-to-r from-green-400 to-blue-500 rounded-lg flex items-center justify-center overflow-hidden">
                     {category.categoryImage ? (
                       <img 
-                        src={`http://localhost:5000${category.categoryImage}`} 
+                        src={`http://89.116.32.45:5000${category.categoryImage}`} 
                         alt={category.name}
                         className="w-full h-full object-cover"
                       />

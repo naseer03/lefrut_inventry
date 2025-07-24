@@ -54,7 +54,17 @@ uploadDirs.forEach(dir => {
 });
 
 // Middleware
-app.use(cors());
+//app.use(cors());
+app.use(cors({
+  origin: [
+    'http://89.116.32.45:5173',    // Your frontend URL (Vite dev server)
+    'http://localhost:5173',        // Keep for local development
+    'http://127.0.0.1:5173'        // Alternative localhost
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
+}));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 

@@ -108,7 +108,7 @@ const Profile: React.FC = () => {
                   <div className="w-32 h-32 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center overflow-hidden">
                     {user?.avatar ? (
                       <img 
-                        src={`http://localhost:5000${user.avatar}`} 
+                        src={`http://89.116.32.45:5000${user.avatar}`} 
                         alt="Profile" 
                         className="w-full h-full object-cover"
                       />

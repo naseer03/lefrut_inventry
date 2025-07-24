@@ -231,7 +231,7 @@ const Products: React.FC = () => {
                     <div className="w-16 h-16 bg-gradient-to-r from-blue-400 to-purple-500 rounded-lg flex items-center justify-center overflow-hidden">
                       {product.productImage ? (
                         <img 
-                          src={`http://localhost:5000${product.productImage}`} 
+                          src={`http://89.116.32.45:5000${product.productImage}`} 
                           alt={product.name}
                           className="w-full h-full object-cover"
                         />

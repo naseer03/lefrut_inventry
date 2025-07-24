@@ -263,7 +263,7 @@ const Staff: React.FC = () => {
                 <div className="w-16 h-16 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center overflow-hidden">
                   {staffMember.profilePhoto ? (
                     <img 
-                      src={`http://localhost:5000${staffMember.profilePhoto}`} 
+                      src={`http://89.116.32.45:5000${staffMember.profilePhoto}`} 
                       alt="Profile" 
                       className="w-full h-full object-cover"
                     />

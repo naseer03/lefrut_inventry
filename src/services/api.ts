@@ -2,10 +2,9 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
-  timeout: 30000, // Increased timeout for file uploads
+  baseURL: 'http://89.116.32.45:5000/api',
+  timeout: 30000,
 });
-
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {

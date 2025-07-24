@@ -216,7 +216,7 @@ const StaffModal: React.FC<StaffModalProps> = ({ staff, onClose, onSave }) => {
                 <div className="w-20 h-20 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center overflow-hidden">
                   {staff?.profilePhoto ? (
                     <img 
-                      src={`http://localhost:5000${staff.profilePhoto}`} 
+                      src={`http://89.116.32.45:5000${staff.profilePhoto}`} 
                       alt="Profile" 
                       className="w-full h-full object-cover"
                     />
