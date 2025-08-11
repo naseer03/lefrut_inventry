@@ -14,9 +14,14 @@ const router = express.Router();
 // Multer configuration for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadPath = file.fieldname === 'profilePhoto' 
-      ? path.join(__dirname, '../uploads/staff/profiles')
-      : path.join(__dirname, '../uploads/staff/documents');
+    let uploadPath;
+    if (file.fieldname === 'profilePhoto') {
+      uploadPath = path.join(__dirname, '../uploads/staff/profiles');
+    } else if (file.fieldname === 'idProofDocument') {
+      uploadPath = path.join(__dirname, '../uploads/staff/documents');
+    } else {
+      uploadPath = path.join(__dirname, '../uploads/staff/documents');
+    }
     cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
@@ -27,7 +32,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
       cb(null, true);
@@ -36,6 +41,12 @@ const upload = multer({
     }
   }
 });
+
+const uploadFields = upload.fields([
+  { name: 'profilePhoto', maxCount: 1 },
+  { name: 'idProofDocument', maxCount: 1 },
+  { name: 'drivingLicenseDocument', maxCount: 1 }
+]);
 
 // Generate next employee ID endpoint
 router.get('/next-employee-id', requirePermission('staff', 'view'), async (req, res) => {
@@ -70,7 +81,6 @@ router.get('/next-employee-id', requirePermission('staff', 'view'), async (req, 
 router.get('/', requirePermission('staff', 'view'), async (req, res) => {
   try {
     const staff = await Staff.find()
-      .populate('userId', 'username email')
       .populate('departmentId', 'name')
       .populate('jobRoles', 'name')
       .select('-password')
@@ -86,7 +96,6 @@ router.get('/', requirePermission('staff', 'view'), async (req, res) => {
 router.get('/:id', requirePermission('staff', 'view'), async (req, res) => {
   try {
     const staff = await Staff.findById(req.params.id)
-      .populate('userId', 'username email')
       .populate('departmentId', 'name')
       .populate('jobRoles', 'name')
       .select('-password');
@@ -107,10 +116,12 @@ router.get('/:id', requirePermission('staff', 'view'), async (req, res) => {
 });
 
 // Create staff
-router.post('/', requirePermission('staff', 'add'), upload.single('profilePhoto'), async (req, res) => {
+router.post('/', requirePermission('staff', 'add'), uploadFields, async (req, res) => {
   try {
     console.log('Creating staff with data:', req.body);
-    console.log('File uploaded:', req.file);
+    console.log('Files uploaded:', req.files);
+    console.log('Password field:', req.body.password);
+    console.log('All form fields:', Object.keys(req.body));
 
     const staffData = { ...req.body };
     
@@ -141,8 +152,23 @@ router.post('/', requirePermission('staff', 'add'), upload.single('profilePhoto'
     }
     
     // Handle profile photo
-    if (req.file) {
-      staffData.profilePhoto = '/uploads/staff/profiles/' + req.file.filename;
+    if (req.files && req.files.profilePhoto && req.files.profilePhoto.length > 0) {
+      staffData.profilePhoto = '/uploads/staff/profiles/' + req.files.profilePhoto[0].filename;
+    }
+
+    // Handle ID proof document
+    if (req.files && req.files.idProofDocument && req.files.idProofDocument.length > 0) {
+      staffData.idProofDocument = '/uploads/staff/documents/' + req.files.idProofDocument[0].filename;
+    }
+
+    // Handle driving license document
+    if (req.files && req.files.drivingLicenseDocument && req.files.drivingLicenseDocument.length > 0) {
+      staffData.drivingLicenseDocument = '/uploads/staff/documents/' + req.files.drivingLicenseDocument[0].filename;
+    }
+
+    // Convert driving license expiry to Date if provided
+    if (staffData.drivingLicenseExpiry) {
+      staffData.drivingLicenseExpiry = new Date(staffData.drivingLicenseExpiry);
     }
 
     console.log('Processed staff data:', staffData);
@@ -153,7 +179,6 @@ router.post('/', requirePermission('staff', 'add'), upload.single('profilePhoto'
     console.log('Staff saved with ID:', staff._id);
     
     const populatedStaff = await Staff.findById(staff._id)
-      .populate('userId', 'username email')
       .populate('departmentId', 'name')
       .populate('jobRoles', 'name')
       .select('-password');
@@ -161,12 +186,19 @@ router.post('/', requirePermission('staff', 'add'), upload.single('profilePhoto'
     res.status(201).json(populatedStaff);
   } catch (error) {
     console.error('Error creating staff:', error);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      code: error.code
+    });
     if (error.code === 11000) {
       // Check which field caused the duplicate error
       const field = Object.keys(error.keyPattern)[0];
       res.status(400).json({ message: `${field} already exists` });
     } else if (error.name === 'ValidationError') {
       const errors = Object.values(error.errors).map(e => e.message);
+      console.error('Validation errors:', errors);
       res.status(400).json({ message: 'Validation error', errors });
     } else {
       res.status(500).json({ message: 'Server error', error: error.message });
@@ -175,7 +207,7 @@ router.post('/', requirePermission('staff', 'add'), upload.single('profilePhoto'
 });
 
 // Update staff
-router.put('/:id', requirePermission('staff', 'update'), upload.single('profilePhoto'), async (req, res) => {
+router.put('/:id', requirePermission('staff', 'update'), uploadFields, async (req, res) => {
   try {
     console.log('Updating staff with data:', req.body);
     
@@ -207,8 +239,23 @@ router.put('/:id', requirePermission('staff', 'update'), upload.single('profileP
       updateData.dateOfJoining = new Date(updateData.dateOfJoining);
     }
     
-    if (req.file) {
-      updateData.profilePhoto = '/uploads/staff/profiles/' + req.file.filename;
+    if (req.files && req.files.profilePhoto && req.files.profilePhoto.length > 0) {
+      updateData.profilePhoto = '/uploads/staff/profiles/' + req.files.profilePhoto[0].filename;
+    }
+
+    // Handle ID proof document update
+    if (req.files && req.files.idProofDocument && req.files.idProofDocument.length > 0) {
+      updateData.idProofDocument = '/uploads/staff/documents/' + req.files.idProofDocument[0].filename;
+    }
+
+    // Handle driving license document update
+    if (req.files && req.files.drivingLicenseDocument && req.files.drivingLicenseDocument.length > 0) {
+      updateData.drivingLicenseDocument = '/uploads/staff/documents/' + req.files.drivingLicenseDocument[0].filename;
+    }
+
+    // Convert driving license expiry to Date if provided
+    if (updateData.drivingLicenseExpiry) {
+      updateData.drivingLicenseExpiry = new Date(updateData.drivingLicenseExpiry);
     }
 
     const staff = await Staff.findById(req.params.id);
@@ -225,7 +272,6 @@ router.put('/:id', requirePermission('staff', 'update'), upload.single('profileP
     await staff.save();
     
     const populatedStaff = await Staff.findById(staff._id)
-      .populate('userId', 'username email')
       .populate('departmentId', 'name')
       .populate('jobRoles', 'name')
       .select('-password');

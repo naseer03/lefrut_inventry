@@ -2,7 +2,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 
 const api = axios.create({
-  baseURL: 'http://89.116.32.45:5000/api',
+  baseURL: 'http://localhost:5001/api',
   timeout: 30000,
 });
 // Request interceptor to add auth token
@@ -53,9 +53,17 @@ api.interceptors.response.use(
       
       switch (status) {
         case 401:
-          // Unauthorized - redirect to login
+          // Unauthorized - redirect to appropriate login page
+          const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
           localStorage.removeItem('token');
-          window.location.href = '/login';
+          localStorage.removeItem('user');
+          
+          // Redirect to staff-login if the user was a staff member, otherwise to regular login
+          if (currentUser && currentUser.role === 'staff') {
+            window.location.href = '/staff-login';
+          } else {
+            window.location.href = '/login';
+          }
           toast.error('Session expired. Please login again.');
           break;
           

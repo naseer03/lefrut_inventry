@@ -9,15 +9,9 @@ import ProductModal from '../components/ProductModal';
 interface Product {
   _id: string;
   name: string;
-  categoryId: {
-    _id: string;
-    name: string;
-  };
-  unitId: {
-    _id: string;
-    name: string;
-    symbol: string;
-  };
+  categoryId: string | { _id: string; name: string };
+  subCategoryId?: string;
+  unitId: string | { _id: string; name: string; symbol: string };
   purchasePrice: number;
   sellingPrice: number;
   currentStock: number;
@@ -29,7 +23,13 @@ interface Product {
   isActive: boolean;
   isPerishable: boolean;
   expiryDate: string;
-  createdAt: string;
+  createdAt?: string;
+}
+
+interface SubCategory {
+  _id: string;
+  name: string;
+  categoryId: string;
 }
 
 const Products: React.FC = () => {
@@ -43,6 +43,8 @@ const Products: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [categories, setCategories] = useState<any[]>([]);
+  const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
+  const [subCategoryFilter, setSubCategoryFilter] = useState('all');
 
   useEffect(() => {
     fetchProducts();
@@ -50,16 +52,31 @@ const Products: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    let filtered = products.filter(product =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.barcode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.categoryId.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    if (categoryFilter !== 'all') {
+      fetchSubCategories(categoryFilter);
+      setSubCategoryFilter('all');
+    } else {
+      setSubCategories([]);
+      setSubCategoryFilter('all');
+    }
+  }, [categoryFilter]);
+
+  useEffect(() => {
+    let filtered = products.filter(product => {
+      const categoryName = typeof product.categoryId === 'object' ? product.categoryId.name : product.categoryId;
+      return (
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.barcode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        categoryName.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    });
 
     if (categoryFilter !== 'all') {
-      filtered = filtered.filter(product => product.categoryId._id === categoryFilter);
+      filtered = filtered.filter(product => (typeof product.categoryId === 'object' ? product.categoryId._id : product.categoryId) === categoryFilter);
     }
-
+    if (subCategoryFilter !== 'all') {
+      filtered = filtered.filter(product => product.subCategoryId === subCategoryFilter);
+    }
     if (stockFilter !== 'all') {
       filtered = filtered.filter(product => {
         const stockStatus = getStockStatus(product);
@@ -68,7 +85,7 @@ const Products: React.FC = () => {
     }
 
     setFilteredProducts(filtered);
-  }, [products, searchTerm, categoryFilter, stockFilter]);
+  }, [products, searchTerm, categoryFilter, subCategoryFilter, stockFilter]);
 
   const fetchProducts = async () => {
     try {
@@ -87,6 +104,16 @@ const Products: React.FC = () => {
       setCategories(response.data);
     } catch (error) {
       console.error('Failed to fetch categories');
+    }
+  };
+
+  const fetchSubCategories = async (categoryId: string) => {
+    if (!categoryId) { setSubCategories([]); return; }
+    try {
+      const response = await api.get(`/sub-categories?categoryId=${categoryId}&isActive=true`);
+      setSubCategories(response.data);
+    } catch (error) {
+      setSubCategories([]);
     }
   };
 
@@ -197,7 +224,20 @@ const Products: React.FC = () => {
             <option value="all">All Categories</option>
             {categories.map((category) => (
               <option key={category._id} value={category._id}>
-                {category.name}
+                {typeof category.name === 'string' ? category.name : ''}
+              </option>
+            ))}
+          </select>
+          <select
+            value={subCategoryFilter}
+            onChange={(e) => setSubCategoryFilter(e.target.value)}
+            className="px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={subCategories.length === 0}
+          >
+            <option value="all">All Sub-Categories</option>
+            {subCategories.map((subCategory) => (
+              <option key={subCategory._id} value={subCategory._id}>
+                {subCategory.name}
               </option>
             ))}
           </select>
@@ -231,7 +271,7 @@ const Products: React.FC = () => {
                     <div className="w-16 h-16 bg-gradient-to-r from-blue-400 to-purple-500 rounded-lg flex items-center justify-center overflow-hidden">
                       {product.productImage ? (
                         <img 
-                          src={`http://89.116.32.45:5000${product.productImage}`} 
+                          src={`http://localhost:5001${product.productImage}`} 
                           alt={product.name}
                           className="w-full h-full object-cover"
                         />
@@ -243,7 +283,10 @@ const Products: React.FC = () => {
                       <h3 className="text-lg font-semibold text-white">
                         {product.name}
                       </h3>
-                      <p className="text-sm text-gray-300">{product.categoryId.name}</p>
+                      <p className="text-sm text-gray-300">{typeof product.categoryId === 'object' ? product.categoryId.name : product.categoryId}</p>
+                      {product.subCategoryId && (
+                        <p className="text-xs text-blue-300">Sub-Category: {subCategories.find(sc => sc._id === product.subCategoryId)?.name || product.subCategoryId}</p>
+                      )}
                       {product.barcode && (
                         <p className="text-xs text-gray-400">#{product.barcode}</p>
                       )}
@@ -276,7 +319,7 @@ const Products: React.FC = () => {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-300">Stock:</span>
-                    <span className="text-white">{product.currentStock} {product.unitId.symbol}</span>
+                    <span className="text-white">{product.currentStock} {typeof product.unitId === 'object' ? product.unitId.symbol : ''}</span>
                   </div>
                 </div>
 
@@ -294,7 +337,7 @@ const Products: React.FC = () => {
 
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-gray-400">
-                    Created: {new Date(product.createdAt).toLocaleDateString()}
+                    Created: {new Date(product.createdAt || '').toLocaleDateString()}
                   </p>
                   <div className="flex items-center gap-2">
                     {hasPermission('products', 'update') && (
@@ -345,7 +388,7 @@ const Products: React.FC = () => {
       {/* Modal */}
       {showModal && (
         <ProductModal
-          product={selectedProduct}
+          product={selectedProduct as any}
           onClose={() => {
             setShowModal(false);
             setSelectedProduct(null);

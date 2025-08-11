@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Package, ShoppingCart, CreditCard, User, Phone, Minus } from 'lucide-react';
+import { Plus, Search, Package, ShoppingCart, CreditCard, User, Phone, Minus, Truck } from 'lucide-react';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
@@ -21,6 +21,16 @@ interface Product {
   currentStock: number;
   productImage: string;
   isActive: boolean;
+  tripQuantity?: number;
+  remainingQuantity?: number;
+}
+
+interface TripInfo {
+  tripId: string;
+  truckId: string;
+  routeId: string;
+  startDate: string;
+  status: string;
 }
 
 interface CartItem {
@@ -30,7 +40,7 @@ interface CartItem {
 }
 
 const MobileSales: React.FC = () => {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -42,10 +52,16 @@ const MobileSales: React.FC = () => {
   });
   const [paymentMode, setPaymentMode] = useState<'Cash' | 'UPI' | 'Card'>('Cash');
   const [submitting, setSubmitting] = useState(false);
+  const [tripInfo, setTripInfo] = useState<TripInfo | null>(null);
+  const [isTripMode, setIsTripMode] = useState(false);
 
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    if (user?.staffInfo?.isDriver) {
+      fetchTripProducts();
+    } else {
+      fetchProducts();
+    }
+  }, [user]);
 
   useEffect(() => {
     const filtered = products.filter(product =>
@@ -56,10 +72,44 @@ const MobileSales: React.FC = () => {
     setFilteredProducts(filtered);
   }, [products, searchTerm]);
 
+  const fetchTripProducts = async () => {
+    try {
+      if (!user?.staffInfo?.id) {
+        toast.error('Driver information not available');
+        return;
+      }
+
+      const response = await api.get(`/truck-trips/driver-trip-products?driverId=${user.staffInfo.id}`);
+      
+      if (response.data.products && response.data.products.length > 0) {
+        setProducts(response.data.products);
+        setTripInfo(response.data.tripInfo);
+        setIsTripMode(true);
+        toast.success('Loaded trip products successfully');
+      } else {
+        // Fallback to regular products if no trip products
+        fetchProducts();
+      }
+    } catch (error: any) {
+      console.error('Fetch trip products error:', error);
+      if (error.response?.status === 404) {
+        toast.success('No active trip found. Loading all available products.');
+        fetchProducts();
+      } else {
+        toast.error('Failed to fetch trip products');
+        fetchProducts(); // Fallback to regular products
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchProducts = async () => {
     try {
       const response = await api.get('/products');
       setProducts(response.data);
+      setIsTripMode(false);
+      setTripInfo(null);
     } catch (error) {
       toast.error('Failed to fetch products');
       console.error('Fetch products error:', error);
@@ -173,7 +223,7 @@ const MobileSales: React.FC = () => {
 
       for (const item of cart) {
         try {
-          // Create sale without tripId (for standalone sales)
+          // Create sale with or without tripId
           const saleData = {
             productId: item.product._id,
             quantitySold: item.quantity,
@@ -182,7 +232,8 @@ const MobileSales: React.FC = () => {
             paymentMode,
             paymentStatus: paymentMode === 'Cash' ? 'paid' : 'pending',
             customerName: customerInfo.name.trim() || undefined,
-            customerPhone: customerInfo.phone.trim() || undefined
+            customerPhone: customerInfo.phone.trim() || undefined,
+            ...(isTripMode && tripInfo && { tripId: tripInfo.tripId })
           };
 
           console.log('Creating sale with data:', saleData);
@@ -233,7 +284,11 @@ const MobileSales: React.FC = () => {
       toast.success(`Sale completed successfully! ${salesResults.length} items sold for ₹${getTotalAmount()}`);
       
       // Refresh products to update stock display
-      await fetchProducts();
+      if (isTripMode && user?.staffInfo?.isDriver) {
+        await fetchTripProducts();
+      } else {
+        await fetchProducts();
+      }
 
     } catch (error: any) {
       console.error('Sale submission error:', error);
@@ -259,11 +314,64 @@ const MobileSales: React.FC = () => {
 
   return (
     <Layout>
+      {/* Driver Information Header */}
+      {user?.staffInfo?.isDriver && user?.truckInfo && (
+        <div className="mb-6 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl border border-white/20 p-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Truck className="h-5 w-5 text-blue-400" />
+                <span className="text-white font-medium">Truck: {user.truckInfo.vehicleNumber}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5 text-green-400" />
+                <span className="text-white font-medium">Driver: {user.staffInfo.fullName}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-gray-300">Capacity: {user.truckInfo.capacity} kg</span>
+              </div>
+            </div>
+            <div className="text-sm text-gray-300">
+              Employee ID: {user.staffInfo.employeeId}
+            </div>
+          </div>
+          
+          {/* Trip Information */}
+          {isTripMode && tripInfo && (
+            <div className="mt-4 pt-4 border-t border-white/20">
+              <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-green-400 font-medium">🚚 Active Trip</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-300">Trip ID: {tripInfo.tripId}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-300">Date: {new Date(tripInfo.startDate).toLocaleDateString()}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-yellow-400 font-medium">Trip Products: {products.length}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Products Section */}
         <div className="lg:col-span-2 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <h1 className="text-2xl font-bold text-white">Mobile Sales</h1>
+            <div>
+              <h1 className="text-2xl font-bold text-white">
+                {isTripMode ? 'Trip Sales' : 'Mobile Sales'}
+              </h1>
+              {isTripMode && (
+                <p className="text-sm text-green-400 mt-1">
+                  Selling products from your active trip
+                </p>
+              )}
+            </div>
             <div className="text-sm text-gray-300">
               Available Products: {filteredProducts.length}
             </div>
@@ -292,7 +400,7 @@ const MobileSales: React.FC = () => {
                   <div className="w-16 h-16 bg-gradient-to-r from-blue-400 to-purple-500 rounded-lg flex items-center justify-center overflow-hidden">
                     {product.productImage ? (
                       <img 
-                        src={`http://89.116.32.45:5000${product.productImage}`} 
+                        src={`http://localhost:5001${product.productImage}`} 
                         alt={product.name}
                         className="w-full h-full object-cover"
                       />
@@ -313,7 +421,15 @@ const MobileSales: React.FC = () => {
                         ₹{product.sellingPrice}
                       </span>
                       <span className="text-sm text-gray-400">
-                        Stock: {product.currentStock} {product.unitId.symbol}
+                        {isTripMode ? (
+                          <span>
+                            Trip Stock: {product.tripQuantity || product.currentStock} {product.unitId.symbol}
+                          </span>
+                        ) : (
+                          <span>
+                            Stock: {product.currentStock} {product.unitId.symbol}
+                          </span>
+                        )}
                       </span>
                     </div>
                   </div>

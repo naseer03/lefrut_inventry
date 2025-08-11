@@ -7,6 +7,7 @@ interface Product {
   _id: string;
   name: string;
   categoryId: string;
+  subCategoryId?: string;
   unitId: string;
   purchasePrice: number;
   sellingPrice: number;
@@ -32,6 +33,12 @@ interface Unit {
   symbol: string;
 }
 
+interface SubCategory {
+  _id: string;
+  name: string;
+  categoryId: string;
+}
+
 interface ProductModalProps {
   product: Product | null;
   onClose: () => void;
@@ -42,6 +49,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ product, onClose, onSave })
   const [formData, setFormData] = useState({
     name: '',
     categoryId: '',
+    subCategoryId: '',
     unitId: '',
     purchasePrice: 0,
     sellingPrice: 0,
@@ -57,6 +65,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ product, onClose, onSave })
   const [productImage, setProductImage] = useState<File | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
+  const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -65,6 +74,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ product, onClose, onSave })
       setFormData({
         name: product.name,
         categoryId: product.categoryId,
+        subCategoryId: product.subCategoryId || '',
         unitId: product.unitId,
         purchasePrice: product.purchasePrice,
         sellingPrice: product.sellingPrice,
@@ -77,6 +87,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ product, onClose, onSave })
         isPerishable: product.isPerishable,
         expiryDate: product.expiryDate ? product.expiryDate.split('T')[0] : ''
       });
+      if (product.categoryId) fetchSubCategories(product.categoryId);
     }
   }, [product]);
 
@@ -90,6 +101,16 @@ const ProductModal: React.FC<ProductModalProps> = ({ product, onClose, onSave })
       setUnits(unitsResponse.data);
     } catch (error) {
       toast.error('Failed to fetch dependencies');
+    }
+  };
+
+  const fetchSubCategories = async (categoryId: string) => {
+    if (!categoryId) { setSubCategories([]); return; }
+    try {
+      const response = await api.get(`/sub-categories?categoryId=${categoryId}&isActive=true`);
+      setSubCategories(response.data);
+    } catch (error) {
+      setSubCategories([]);
     }
   };
 
@@ -173,7 +194,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ product, onClose, onSave })
               </label>
               <select
                 value={formData.categoryId}
-                onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, categoryId: e.target.value, subCategoryId: '' });
+                  fetchSubCategories(e.target.value);
+                }}
                 required
                 className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
@@ -187,18 +211,18 @@ const ProductModal: React.FC<ProductModalProps> = ({ product, onClose, onSave })
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-200 mb-2">
-                Unit
+                Sub-Category (optional)
               </label>
               <select
-                value={formData.unitId}
-                onChange={(e) => setFormData({ ...formData, unitId: e.target.value })}
-                required
+                value={formData.subCategoryId}
+                onChange={(e) => setFormData({ ...formData, subCategoryId: e.target.value })}
                 className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={!formData.categoryId || subCategories.length === 0}
               >
-                <option value="">Select Unit</option>
-                {units.map((unit) => (
-                  <option key={unit._id} value={unit._id}>
-                    {unit.name} ({unit.symbol})
+                <option value="">Select Sub-Category</option>
+                {subCategories.map((subCategory) => (
+                  <option key={subCategory._id} value={subCategory._id}>
+                    {subCategory.name}
                   </option>
                 ))}
               </select>

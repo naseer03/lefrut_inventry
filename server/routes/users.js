@@ -59,18 +59,56 @@ router.get('/:id', requirePermission('users', 'view'), async (req, res) => {
 // Create user
 router.post('/', requirePermission('users', 'add'), async (req, res) => {
   try {
+    console.log('Creating user with data:', req.body);
+    
+    // Validate required fields
+    const { firstName, lastName, username, email, password } = req.body;
+    
+    if (!firstName || !lastName || !username || !email || !password) {
+      return res.status(400).json({ 
+        message: 'Missing required fields: firstName, lastName, username, email, and password are required' 
+      });
+    }
+
+    // Check if username or email already exists
+    const existingUser = await User.findOne({
+      $or: [{ username }, { email }]
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ 
+        message: existingUser.username === username 
+          ? 'Username already exists' 
+          : 'Email already exists' 
+      });
+    }
+
     const user = new User(req.body);
     await user.save();
     
     const userResponse = user.toObject();
     delete userResponse.password;
     
+    console.log('User created successfully:', userResponse._id);
     res.status(201).json(userResponse);
   } catch (error) {
+    console.error('Error creating user:', error);
+    
     if (error.code === 11000) {
-      res.status(400).json({ message: 'Username or email already exists' });
+      const field = Object.keys(error.keyValue)[0];
+      res.status(400).json({ 
+        message: `${field.charAt(0).toUpperCase() + field.slice(1)} already exists` 
+      });
+    } else if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      res.status(400).json({ 
+        message: `Validation failed: ${messages.join(', ')}` 
+      });
     } else {
-      res.status(500).json({ message: 'Server error', error: error.message });
+      res.status(500).json({ 
+        message: 'Server error occurred while creating user', 
+        error: error.message 
+      });
     }
   }
 });

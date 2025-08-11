@@ -9,10 +9,29 @@ interface User {
   lastName: string;
   avatar: string;
   role: string;
-  permissions: Array<{
+  permissions: string[] | Array<{
     module: string;
     actions: string[];
   }>;
+  staffInfo?: {
+    id: string;
+    fullName: string;
+    employeeId: string;
+    mobileNumber: string;
+    email: string;
+    jobRoles: Array<{
+      _id: string;
+      name: string;
+    }>;
+    isDriver: boolean;
+    hasActiveTrip?: boolean;
+  };
+  truckInfo?: {
+    id: string;
+    truckId: string;
+    vehicleNumber: string;
+    capacity: number;
+  };
 }
 
 interface AuthContextType {
@@ -22,6 +41,7 @@ interface AuthContextType {
   loading: boolean;
   hasPermission: (module: string, action: string) => boolean;
   updateUser: (userData: Partial<User>) => void;
+  setUser: (user: User | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -51,9 +71,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchCurrentUser = async () => {
     try {
       const response = await api.get('/auth/me');
-      setUser(response.data.user);
+      const userData = response.data.user;
+      localStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
     } catch (error) {
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
       delete api.defaults.headers.common['Authorization'];
     } finally {
       setLoading(false);
@@ -65,12 +88,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { token, user } = response.data;
     
     localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     setUser(user);
   };
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     delete api.defaults.headers.common['Authorization'];
     setUser(null);
   };
@@ -79,8 +104,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return false;
     if (user.role === 'admin') return true;
     
-    const modulePermission = user.permissions.find(p => p.module === module);
-    return modulePermission ? modulePermission.actions.includes(action) : false;
+    // Handle both permission formats
+    if (Array.isArray(user.permissions)) {
+      // Check if it's an array of strings (staff format)
+      if (user.permissions.length > 0 && typeof user.permissions[0] === 'string') {
+        const permissionString = `${module}:${action}`;
+        return (user.permissions as string[]).includes(permissionString);
+      }
+      // Check if it's an array of objects (admin format)
+      else {
+        const modulePermission = (user.permissions as Array<{module: string; actions: string[]}>).find(p => p.module === module);
+        return modulePermission ? modulePermission.actions.includes(action) : false;
+      }
+    }
+    
+    return false;
   };
 
   const updateUser = (userData: Partial<User>) => {
@@ -95,7 +133,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logout,
     loading,
     hasPermission,
-    updateUser
+    updateUser,
+    setUser
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

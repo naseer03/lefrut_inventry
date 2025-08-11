@@ -29,11 +29,7 @@ const staffSchema = new mongoose.Schema({
     required: true,
     minlength: 6
   },
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
+
   departmentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Department',
@@ -55,6 +51,35 @@ const staffSchema = new mongoose.Schema({
   address: {
     type: String,
     trim: true,
+    default: ''
+  },
+  idProofType: {
+    type: String,
+    trim: true,
+    enum: ['Aadhar Card', 'PAN Card', 'Passport', 'Driving License', 'Voter ID', 'Other'],
+    default: ''
+  },
+  idProofNumber: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  idProofDocument: {
+    type: String,
+    default: ''
+  },
+  // Truck Driver Information
+  drivingLicenseNumber: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  drivingLicenseExpiry: {
+    type: Date,
+    default: null
+  },
+  drivingLicenseDocument: {
+    type: String,
     default: ''
   },
   status: {

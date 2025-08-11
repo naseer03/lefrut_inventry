@@ -22,7 +22,8 @@ import {
   Smartphone,
   Truck,
   Navigation,
-  BarChart3
+  BarChart3,
+  Route
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -71,6 +72,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: 'Sales', href: '/sales', icon: ShoppingCart, module: 'sales', action: 'view' },
     { name: 'Mobile Sales', href: '/mobile-sales', icon: Smartphone, module: 'sales', action: 'add' },
     { name: 'Trucks', href: '/trucks', icon: Truck, module: 'trucks', action: 'view' },
+    { name: 'Trip', href: '/trip', icon: Route, module: 'trips', action: 'view' },
     { name: 'Routes', href: '/routes', icon: Navigation, module: 'routes', action: 'view' },
     { name: 'Reports', href: '/reports', icon: BarChart3, module: 'sales', action: 'view' },
     { name: 'Users', href: '/users', icon: Users, module: 'users', action: 'view' },
@@ -78,13 +80,25 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: 'Permissions', href: '/permissions', icon: Shield, module: 'permissions', action: 'view' }
   ];
 
-  const filteredNavigation = navigationItems.filter(item => 
-    !item.module || hasPermission(item.module, item.action!)
-  );
+  const filteredNavigation = navigationItems.filter(item => {
+    // Special handling for Mobile Sales - only show for drivers with active trips
+    if (item.name === 'Mobile Sales') {
+      return user?.staffInfo?.isDriver && user?.staffInfo?.hasActiveTrip;
+    }
+    
+    // If user is a driver, only show Mobile Sales (handled above)
+    if (user?.staffInfo?.isDriver) {
+      return false; // This will filter out all other navigation items for drivers
+    }
+    
+    // For other users, check permissions
+    return !item.module || hasPermission(item.module, item.action!);
+  });
 
   const handleLogout = () => {
+    const redirectPath = user?.role === 'staff' ? '/staff-login' : '/login';
     logout();
-    navigate('/login');
+    navigate(redirectPath);
   };
 
   const toggleProfileDropdown = () => {
@@ -161,6 +175,25 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </button>
 
             <div className="flex items-center space-x-4">
+              {/* Driver Information */}
+              {user?.staffInfo?.isDriver && user?.truckInfo && (
+                <div className="hidden md:flex items-center space-x-4 text-gray-300">
+                  <div className="flex items-center space-x-2">
+                    <Truck className="h-4 w-4" />
+                    <span className="text-sm">
+                      Truck: {user.truckInfo.vehicleNumber}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <User className="h-4 w-4" />
+                    <span className="text-sm">
+                      Driver: {user.staffInfo.fullName}
+                    </span>
+                  </div>
+
+                </div>
+              )}
+              
               {/* Profile Dropdown Button */}
               <div className="relative">
                 <button

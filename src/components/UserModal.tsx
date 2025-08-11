@@ -25,11 +25,7 @@ interface UserModalProps {
 
 const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
   const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    firstName: '',
-    lastName: '',
-    password: '',
+    name: '',
     role: 'user',
     isActive: true
   });
@@ -38,11 +34,7 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
   useEffect(() => {
     if (user) {
       setFormData({
-        username: user.username,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        password: '',
+        name: `${user.firstName} ${user.lastName}`.trim(),
         role: user.role,
         isActive: user.isActive
       });
@@ -54,10 +46,40 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
     setLoading(true);
 
     try {
-      const submitData = { ...formData };
-      if (user && !submitData.password) {
-        delete submitData.password;
+      // Split the name into firstName and lastName
+      const nameParts = formData.name.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      let submitData;
+      
+      if (user) {
+        // For editing existing users, preserve username and email
+        submitData = {
+          firstName,
+          lastName,
+          role: formData.role,
+          isActive: formData.isActive
+        };
+      } else {
+        // For new users, generate unique username and email
+        const baseUsername = formData.name.toLowerCase().replace(/\s+/g, '.');
+        const timestamp = Date.now().toString().slice(-4); // Last 4 digits of timestamp
+        const username = `${baseUsername}.${timestamp}`;
+        const email = `${username}@fruitbusiness.com`;
+
+        submitData = {
+          firstName,
+          lastName,
+          username,
+          email,
+          password: 'defaultPassword123', // Default password for new users
+          role: formData.role,
+          isActive: formData.isActive
+        };
       }
+
+      console.log('Submitting user data:', submitData);
 
       const response = user
         ? await api.put(`/users/${user._id}`, submitData)
@@ -66,7 +88,14 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
       onSave(response.data);
       toast.success(`User ${user ? 'updated' : 'created'} successfully`);
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'An error occurred');
+      console.error('Error creating/updating user:', error);
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else if (error.message) {
+        toast.error(error.message);
+      } else {
+        toast.error('An error occurred while saving the user');
+      }
     } finally {
       setLoading(false);
     }
@@ -88,99 +117,55 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-200 mb-2">
-                First Name
-              </label>
-              <input
-                type="text"
-                value={formData.firstName}
-                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                required
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+          {!user && (
+            <div className="p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg">
+              <p className="text-sm text-blue-200">
+                <strong>Note:</strong> Username and email will be auto-generated from the name. 
+                Default password will be "defaultPassword123".
+              </p>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-200 mb-2">
-                Last Name
-              </label>
-              <input
-                type="text"
-                value={formData.lastName}
-                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                required
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
+          )}
+          
           <div>
             <label className="block text-sm font-medium text-gray-200 mb-2">
-              Username
+              Name
             </label>
             <input
               type="text"
-              value={formData.username}
-              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
+              placeholder="Enter full name"
               className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-200 mb-2">
-              Email
+              Role
             </label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              required
-              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <select
+              value={formData.role}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-200 mb-2">
-              Password {user && '(leave blank to keep current)'}
+              Status
             </label>
-            <input
-              type="password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              required={!user}
-              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-200 mb-2">
-                Role
-              </label>
-              <select
-                value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-200 mb-2">
-                Status
-              </label>
-              <select
-                value={formData.isActive.toString()}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.value === 'true' })}
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="true">Active</option>
-                <option value="false">Inactive</option>
-              </select>
-            </div>
+            <select
+              value={formData.isActive.toString()}
+              onChange={(e) => setFormData({ ...formData, isActive: e.target.value === 'true' })}
+              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="true">Active</option>
+              <option value="false">Inactive</option>
+            </select>
           </div>
 
           <div className="flex gap-3 pt-4">

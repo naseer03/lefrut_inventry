@@ -1,22 +1,13 @@
 import mongoose from 'mongoose';
 
-const expenseSchema = new mongoose.Schema({
-  type: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  amount: {
-    type: Number,
-    required: true,
-    min: 0
-  }
-}, { _id: false });
-
 const truckTripSchema = new mongoose.Schema({
   truckId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Truck',
+    required: true
+  },
+  tripDate: {
+    type: Date,
     required: true
   },
   routeId: {
@@ -24,31 +15,78 @@ const truckTripSchema = new mongoose.Schema({
     ref: 'Route',
     required: true
   },
-  tripDate: {
-    type: Date,
+  startTime: {
+    type: String,
     required: true
   },
-  startTime: {
-    type: Date
+  startLocation: {
+    type: String,
+    required: true
   },
-  endTime: {
-    type: Date
+  driverId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Staff',
+    required: true
   },
-  fuelAddedLiters: {
+  salespersonId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Staff'
+  },
+  helperId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Staff'
+  },
+  fuelAdded: {
     type: Number,
-    default: 0,
-    min: 0
+    default: 0
   },
-  fuelCost: {
-    type: Number,
-    default: 0,
-    min: 0
+  tripNotes: {
+    type: String,
+    default: ''
   },
-  expenses: [expenseSchema],
   status: {
     type: String,
     enum: ['planned', 'in_progress', 'completed', 'cancelled'],
     default: 'planned'
+  },
+  dispatchItems: [{
+    itemId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Product',
+      required: true
+    },
+    itemName: {
+      type: String,
+      required: true
+    },
+    quantity: {
+      type: Number,
+      required: true,
+      min: 1
+    },
+    costPrice: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+    totalCost: {
+      type: Number,
+      required: true,
+      min: 0
+    }
+  }],
+  totalValue: {
+    type: Number,
+    default: 0
+  },
+  totalItems: {
+    type: Number,
+    default: 0
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   },
   isActive: {
     type: Boolean,
@@ -57,5 +95,15 @@ const truckTripSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+// Virtual for trip duration (can be calculated later)
+truckTripSchema.virtual('tripDuration').get(function() {
+  // This can be calculated when trip is completed
+  return null;
+});
+
+// Index for better query performance
+truckTripSchema.index({ tripDate: -1, status: 1 });
+truckTripSchema.index({ truckId: 1, tripDate: 1 });
 
 export default mongoose.model('TruckTrip', truckTripSchema);

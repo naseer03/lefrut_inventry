@@ -1,9 +1,14 @@
+import './index.css';
+import './styles/print.css';
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import DriverRoute from './components/DriverRoute';
+import AccessDenied from './components/AccessDenied';
 import Login from './pages/Login';
+import StaffLogin from './pages/StaffLogin';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import States from './pages/States';
@@ -19,6 +24,7 @@ import Units from './pages/Units';
 import Sales from './pages/Sales';
 import MobileSales from './pages/MobileSales';
 import TruckManagement from './pages/TruckManagement';
+import Trip from './pages/Trip';
 import RoutesPage from './pages/Routes';
 import Reports from './pages/Reports';
 
@@ -29,14 +35,19 @@ function App() {
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/staff-login" element={<StaffLogin />} />
             <Route path="/" element={
               <ProtectedRoute>
-                <Dashboard />
+                <DriverRoute>
+                  <Dashboard />
+                </DriverRoute>
               </ProtectedRoute>
             } />
             <Route path="/users" element={
               <ProtectedRoute requiredModule="users" requiredAction="view">
-                <Users />
+                <DriverRoute showAccessDenied={true}>
+                  <Users />
+                </DriverRoute>
               </ProtectedRoute>
             } />
             <Route path="/states" element={
@@ -51,7 +62,9 @@ function App() {
             } />
             <Route path="/staff" element={
               <ProtectedRoute requiredModule="staff" requiredAction="view">
-                <Staff />
+                <DriverRoute showAccessDenied={true}>
+                  <Staff />
+                </DriverRoute>
               </ProtectedRoute>
             } />
             <Route path="/departments" element={
@@ -90,13 +103,20 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="/mobile-sales" element={
-              <ProtectedRoute requiredModule="sales" requiredAction="add">
+              <ProtectedRoute>
                 <MobileSales />
               </ProtectedRoute>
             } />
             <Route path="/trucks" element={
               <ProtectedRoute requiredModule="trucks" requiredAction="view">
-                <TruckManagement />
+                <DriverRoute showAccessDenied={true}>
+                  <TruckManagement />
+                </DriverRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/trip" element={
+              <ProtectedRoute requiredModule="trips" requiredAction="view">
+                <Trip />
               </ProtectedRoute>
             } />
             <Route path="/routes" element={

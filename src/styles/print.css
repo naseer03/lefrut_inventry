@@ -1,0 +1,413 @@
+/* Print Styles for Trip Details */
+@media print {
+  /* Hide only specific elements that shouldn't be printed */
+  .no-print,
+  button,
+  .modal-overlay,
+  .fixed {
+    display: none !important;
+  }
+  
+  /* Show the print content */
+  .print-content {
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    background: white !important;
+    color: black !important;
+    padding: 20px !important;
+    visibility: visible !important;
+    display: block !important;
+  }
+  
+  /* Ensure all content within print-content is visible */
+  .print-content * {
+    visibility: visible !important;
+  }
+  
+  /* Print-specific styling */
+  .print-content h1,
+  .print-content h2,
+  .print-content h3,
+  .print-content h4 {
+    color: #1f2937 !important;
+    margin-bottom: 10px !important;
+    page-break-after: avoid !important;
+  }
+  
+  .print-content p {
+    color: #374151 !important;
+  }
+  
+  /* Gray theme styling for print */
+  .print-content .bg-gradient-to-br {
+    background: #f9fafb !important;
+    border: 1px solid #d1d5db !important;
+    margin-bottom: 15px !important;
+  }
+  
+  .print-content .text-white {
+    color: #1f2937 !important;
+  }
+  
+  .print-content .text-gray-300 {
+    color: #6b7280 !important;
+  }
+  
+  .print-content .text-gray-400 {
+    color: #9ca3af !important;
+  }
+  
+  .print-content .text-gray-500 {
+    color: #6b7280 !important;
+  }
+  
+  .print-content .text-gray-600 {
+    color: #4b5563 !important;
+  }
+  
+  .print-content .text-gray-700 {
+    color: #374151 !important;
+  }
+  
+  .print-content .text-gray-800 {
+    color: #1f2937 !important;
+  }
+  
+  .print-content .border-white\/10 {
+    border-color: #d1d5db !important;
+  }
+  
+  .print-content .bg-white\/5 {
+    background: #f3f4f6 !important;
+  }
+  
+  /* Print-specific background colors */
+  .print-content .print\:bg-gray-50 {
+    background: #f9fafb !important;
+  }
+  
+  .print-content .print\:bg-gray-100 {
+    background: #f3f4f6 !important;
+  }
+  
+  .print-content .print\:bg-gray-200 {
+    background: #e5e7eb !important;
+  }
+  
+  .print-content .print\:bg-white {
+    background: white !important;
+  }
+  
+  /* Print-specific border colors */
+  .print-content .print\:border-gray-300 {
+    border-color: #d1d5db !important;
+  }
+  
+  .print-content .print\:border-gray-400 {
+    border-color: #9ca3af !important;
+  }
+  
+  .print-content .print\:border-gray-600 {
+    border-color: #4b5563 !important;
+  }
+  
+  /* Print-specific text colors */
+  .print-content .print\:text-gray-600 {
+    color: #4b5563 !important;
+  }
+  
+  .print-content .print\:text-gray-700 {
+    color: #374151 !important;
+  }
+  
+  .print-content .print\:text-gray-800 {
+    color: #1f2937 !important;
+  }
+  
+  /* Table styles for print */
+  .print-content table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    margin-bottom: 15px !important;
+  }
+  
+  .print-content th,
+  .print-content td {
+    border: 1px solid #d1d5db !important;
+    padding: 8px !important;
+    text-align: left !important;
+  }
+  
+  .print-content th {
+    background: #f3f4f6 !important;
+    font-weight: bold !important;
+  }
+  
+  /* Signature section for print */
+  .print-content .border-dashed {
+    border-style: dashed !important;
+    border-color: #9ca3af !important;
+  }
+  
+  /* Page break controls */
+  .print-content .page-break {
+    page-break-before: always !important;
+  }
+  
+  .print-content .no-break {
+    page-break-inside: avoid !important;
+  }
+  
+  /* Header for print */
+  .print-header {
+    text-align: center !important;
+    margin-bottom: 30px !important;
+    padding-bottom: 20px !important;
+    border-bottom: 2px solid #d1d5db !important;
+  }
+  
+  .print-header h1 {
+    font-size: 28px !important;
+    font-weight: bold !important;
+    margin-bottom: 5px !important;
+    color: #1f2937 !important;
+  }
+  
+  .print-header p {
+    font-size: 14px !important;
+    color: #6b7280 !important;
+  }
+  
+  /* Footer for print */
+  .print-footer {
+    text-align: center !important;
+    margin-top: 30px !important;
+    padding-top: 20px !important;
+    border-top: 2px solid #d1d5db !important;
+  }
+  
+  .print-footer p {
+    font-size: 12px !important;
+    color: #6b7280 !important;
+    margin: 2px 0 !important;
+  }
+  
+  /* Grid layouts for print */
+  .print-content .grid {
+    display: grid !important;
+  }
+  
+  .print-content .grid-cols-1 {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .print-content .grid-cols-2 {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  
+  .print-content .grid-cols-3 {
+    grid-template-columns: 1fr 1fr 1fr !important;
+  }
+  
+  .print-content .grid-cols-4 {
+    grid-template-columns: 1fr 1fr 1fr 1fr !important;
+  }
+  
+  /* Flexbox for print */
+  .print-content .flex {
+    display: flex !important;
+  }
+  
+  .print-content .flex-col {
+    flex-direction: column !important;
+  }
+  
+  .print-content .flex-row {
+    flex-direction: row !important;
+  }
+  
+  .print-content .items-center {
+    align-items: center !important;
+  }
+  
+  .print-content .justify-between {
+    justify-content: space-between !important;
+  }
+  
+  .print-content .gap-2 {
+    gap: 0.5rem !important;
+  }
+  
+  .print-content .gap-3 {
+    gap: 0.75rem !important;
+  }
+  
+  .print-content .gap-4 {
+    gap: 1rem !important;
+  }
+  
+  .print-content .gap-6 {
+    gap: 1.5rem !important;
+  }
+  
+  .print-content .gap-8 {
+    gap: 2rem !important;
+  }
+  
+  /* Spacing for print */
+  .print-content .space-y-6 > * + * {
+    margin-top: 1.5rem !important;
+  }
+  
+  .print-content .mb-2 {
+    margin-bottom: 0.5rem !important;
+  }
+  
+  .print-content .mb-3 {
+    margin-bottom: 0.75rem !important;
+  }
+  
+  .print-content .mb-4 {
+    margin-bottom: 1rem !important;
+  }
+  
+  .print-content .mb-6 {
+    margin-bottom: 1.5rem !important;
+  }
+  
+  .print-content .mb-8 {
+    margin-bottom: 2rem !important;
+  }
+  
+  .print-content .mt-8 {
+    margin-top: 2rem !important;
+  }
+  
+  .print-content .p-4 {
+    padding: 1rem !important;
+  }
+  
+  .print-content .p-6 {
+    padding: 1.5rem !important;
+  }
+  
+  .print-content .rounded-xl {
+    border-radius: 0.75rem !important;
+  }
+  
+  .print-content .rounded-2xl {
+    border-radius: 1rem !important;
+  }
+  
+  .print-content .rounded-lg {
+    border-radius: 0.5rem !important;
+  }
+  
+  /* Text sizes for print */
+  .print-content .text-sm {
+    font-size: 0.875rem !important;
+  }
+  
+  .print-content .text-lg {
+    font-size: 1.125rem !important;
+  }
+  
+  .print-content .text-xl {
+    font-size: 1.25rem !important;
+  }
+  
+  .print-content .text-2xl {
+    font-size: 1.5rem !important;
+  }
+  
+  .print-content .text-3xl {
+    font-size: 1.875rem !important;
+  }
+  
+  .print-content .text-4xl {
+    font-size: 2.25rem !important;
+  }
+  
+  /* Font weights for print */
+  .print-content .font-medium {
+    font-weight: 500 !important;
+  }
+  
+  .print-content .font-semibold {
+    font-weight: 600 !important;
+  }
+  
+  .print-content .font-bold {
+    font-weight: 700 !important;
+  }
+  
+  /* Hide icons in print */
+  .print-content svg {
+    display: none !important;
+  }
+  
+  /* Print-specific display classes */
+  .print-content .print\:block {
+    display: block !important;
+  }
+  
+  .print-content .print\:hidden {
+    display: none !important;
+  }
+  
+  /* Print-specific margin and padding */
+  .print-content .print\:mb-8 {
+    margin-bottom: 2rem !important;
+  }
+  
+  .print-content .print\:mt-8 {
+    margin-top: 2rem !important;
+  }
+  
+  .print-content .print\:pt-4 {
+    padding-top: 1rem !important;
+  }
+  
+  /* Print-specific border styles */
+  .print-content .print\:border-t-2 {
+    border-top-width: 2px !important;
+  }
+  
+  .print-content .print\:border-b-2 {
+    border-bottom-width: 2px !important;
+  }
+  
+  /* Print-specific height adjustments */
+  .print-content .print\:h-24 {
+    height: 6rem !important;
+  }
+  
+  /* Print-specific border collapse */
+  .print-content .print\:border-collapse {
+    border-collapse: collapse !important;
+  }
+  
+  /* Ensure proper text alignment for print */
+  .print-content .text-left {
+    text-align: left !important;
+  }
+  
+  .print-content .text-right {
+    text-align: right !important;
+  }
+  
+  .print-content .text-center {
+    text-align: center !important;
+  }
+  
+  /* Ensure proper border styles */
+  .print-content .border {
+    border-width: 1px !important;
+  }
+  
+  .print-content .border-2 {
+    border-width: 2px !important;
+  }
+} 

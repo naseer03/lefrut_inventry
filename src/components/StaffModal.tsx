@@ -9,11 +9,6 @@ interface Staff {
   employeeId: string;
   mobileNumber: string;
   email: string;
-  userId: {
-    _id: string;
-    username: string;
-    email: string;
-  };
   departmentId: {
     _id: string;
     name: string;
@@ -26,6 +21,13 @@ interface Staff {
   dateOfJoining: string;
   salary: number;
   address: string;
+  idProofType: string;
+  idProofNumber: string;
+  idProofDocument: string;
+  // Truck Driver Information
+  drivingLicenseNumber: string;
+  drivingLicenseExpiry: string;
+  drivingLicenseDocument: string;
   status: string;
   profilePhoto: string;
   isActive: boolean;
@@ -41,11 +43,7 @@ interface JobRole {
   name: string;
 }
 
-interface User {
-  _id: string;
-  username: string;
-  email: string;
-}
+
 
 interface StaffModalProps {
   staff: Staff | null;
@@ -59,20 +57,27 @@ const StaffModal: React.FC<StaffModalProps> = ({ staff, onClose, onSave }) => {
     employeeId: '',
     mobileNumber: '',
     email: '',
-    userId: '',
     departmentId: '',
     jobRoles: [] as string[],
     shiftTiming: '',
     dateOfJoining: '',
     salary: '',
     address: '',
+    idProofType: '',
+    idProofNumber: '',
+    idProofDocument: '',
+    // Truck Driver Information
+    drivingLicenseNumber: '',
+    drivingLicenseExpiry: '',
     status: 'active',
-    password: ''
+    password: '',
+    confirmPassword: '',
   });
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
+  const [idProofDocument, setIdProofDocument] = useState<File | null>(null);
+  const [drivingLicenseDocument, setDrivingLicenseDocument] = useState<File | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [generatingEmployeeId, setGeneratingEmployeeId] = useState(false);
@@ -85,15 +90,21 @@ const StaffModal: React.FC<StaffModalProps> = ({ staff, onClose, onSave }) => {
         employeeId: staff.employeeId,
         mobileNumber: staff.mobileNumber,
         email: staff.email || '',
-        userId: staff.userId._id,
         departmentId: staff.departmentId._id,
         jobRoles: staff.jobRoles.map(role => role._id),
         shiftTiming: staff.shiftTiming,
         dateOfJoining: staff.dateOfJoining.split('T')[0],
         salary: staff.salary?.toString() || '',
         address: staff.address,
+        idProofType: staff.idProofType,
+        idProofNumber: staff.idProofNumber,
+        idProofDocument: staff.idProofDocument,
+        // Truck Driver Information
+        drivingLicenseNumber: staff.drivingLicenseNumber || '',
+        drivingLicenseExpiry: staff.drivingLicenseExpiry ? staff.drivingLicenseExpiry.split('T')[0] : '',
         status: staff.status,
-        password: ''
+        password: '',
+        confirmPassword: '',
       });
     } else {
       // Auto-generate employee ID for new staff
@@ -103,14 +114,12 @@ const StaffModal: React.FC<StaffModalProps> = ({ staff, onClose, onSave }) => {
 
   const fetchData = async () => {
     try {
-      const [deptResponse, roleResponse, userResponse] = await Promise.all([
+      const [deptResponse, roleResponse] = await Promise.all([
         api.get('/departments'),
-        api.get('/job-roles'),
-        api.get('/users')
+        api.get('/job-roles')
       ]);
       setDepartments(deptResponse.data);
       setJobRoles(roleResponse.data);
-      setUsers(userResponse.data);
     } catch (error) {
       toast.error('Failed to fetch data');
     } finally {
@@ -137,6 +146,52 @@ const StaffModal: React.FC<StaffModalProps> = ({ staff, onClose, onSave }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    console.log('Form submission started', { staff: !!staff, formData });
+    
+    // Validate password confirmation for new staff
+    if (!staff && formData.password !== formData.confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    
+    // Validate password confirmation for existing staff if password is being changed
+    if (staff && formData.password && formData.password !== formData.confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    
+    // Validate required fields
+    const requiredFields = ['fullName', 'employeeId', 'mobileNumber', 'departmentId', 'dateOfJoining'];
+    const missingFields = requiredFields.filter(field => !formData[field as keyof typeof formData]);
+    
+    if (missingFields.length > 0) {
+      toast.error(`Missing required fields: ${missingFields.join(', ')}`);
+      return;
+    }
+    
+    // Validate job roles are selected
+    if (formData.jobRoles.length === 0) {
+      toast.error('Please select at least one job role');
+      return;
+    }
+    
+    // Validate truck driver specific fields if truck driver role is selected
+    if (isTruckDriverSelected()) {
+      if (!formData.drivingLicenseNumber.trim()) {
+        toast.error('Driving License Number is required for Truck Driver role');
+        return;
+      }
+      if (!formData.drivingLicenseExpiry) {
+        toast.error('Driving License Expiry Date is required for Truck Driver role');
+        return;
+      }
+      if (!drivingLicenseDocument && !staff?.drivingLicenseDocument) {
+        toast.error('Driving License Document is required for Truck Driver role');
+        return;
+      }
+    }
+    
     setLoading(true);
 
     try {
@@ -145,7 +200,7 @@ const StaffModal: React.FC<StaffModalProps> = ({ staff, onClose, onSave }) => {
       Object.entries(formData).forEach(([key, value]) => {
         if (key === 'jobRoles') {
           submitData.append(key, JSON.stringify(value));
-        } else {
+        } else if (key !== 'confirmPassword') { // Don't send confirmPassword to backend
           submitData.append(key, value.toString());
         }
       });
@@ -154,6 +209,16 @@ const StaffModal: React.FC<StaffModalProps> = ({ staff, onClose, onSave }) => {
         submitData.append('profilePhoto', profilePhoto);
       }
 
+      if (idProofDocument) {
+        submitData.append('idProofDocument', idProofDocument);
+      }
+
+      if (drivingLicenseDocument) {
+        submitData.append('drivingLicenseDocument', drivingLicenseDocument);
+      }
+
+      console.log('Sending request to:', staff ? `PUT /staff/${staff._id}` : 'POST /staff');
+      
       const response = staff
         ? await api.put(`/staff/${staff._id}`, submitData, {
             headers: { 'Content-Type': 'multipart/form-data' }
@@ -162,9 +227,12 @@ const StaffModal: React.FC<StaffModalProps> = ({ staff, onClose, onSave }) => {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
 
+      console.log('Response received:', response.data);
       onSave(response.data);
       toast.success(`Staff ${staff ? 'updated' : 'created'} successfully`);
     } catch (error: any) {
+      console.error('Error in handleSubmit:', error);
+      console.error('Error response:', error.response?.data);
       toast.error(error.response?.data?.message || 'An error occurred');
     } finally {
       setLoading(false);
@@ -178,6 +246,12 @@ const StaffModal: React.FC<StaffModalProps> = ({ staff, onClose, onSave }) => {
         ? [...prev.jobRoles, roleId]
         : prev.jobRoles.filter(id => id !== roleId)
     }));
+  };
+
+  // Helper function to check if Truck Driver role is selected
+  const isTruckDriverSelected = () => {
+    const truckDriverRole = jobRoles.find(role => role.name === 'Truck Driver');
+    return truckDriverRole && formData.jobRoles.includes(truckDriverRole._id);
   };
 
   if (dataLoading) {
@@ -216,7 +290,7 @@ const StaffModal: React.FC<StaffModalProps> = ({ staff, onClose, onSave }) => {
                 <div className="w-20 h-20 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center overflow-hidden">
                   {staff?.profilePhoto ? (
                     <img 
-                      src={`http://89.116.32.45:5000${staff.profilePhoto}`} 
+                      src={`http://localhost:5001${staff.profilePhoto}`} 
                       alt="Profile" 
                       className="w-full h-full object-cover"
                     />
@@ -231,6 +305,7 @@ const StaffModal: React.FC<StaffModalProps> = ({ staff, onClose, onSave }) => {
                   Choose Photo
                   <input
                     type="file"
+                    name="profilePhoto"
                     accept="image/*"
                     onChange={(e) => setProfilePhoto(e.target.files?.[0] || null)}
                     className="hidden"
@@ -311,24 +386,7 @@ const StaffModal: React.FC<StaffModalProps> = ({ staff, onClose, onSave }) => {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-200 mb-2">
-                User Account *
-              </label>
-              <select
-                value={formData.userId}
-                onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
-                required
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select User</option>
-                {users.map((user) => (
-                  <option key={user._id} value={user._id}>
-                    {user.username} ({user.email})
-                  </option>
-                ))}
-              </select>
-            </div>
+
 
             <div>
               <label className="block text-sm font-medium text-gray-200 mb-2">
@@ -414,20 +472,138 @@ const StaffModal: React.FC<StaffModalProps> = ({ staff, onClose, onSave }) => {
               />
             </div>
 
-            {!staff && (
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-200 mb-2">
-                  Password *
-                </label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required={!staff}
-                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-2">
+                Password {!staff && '*'}
+              </label>
+              <input
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                required={!staff}
+                placeholder={staff ? "Leave blank to keep current password" : "Enter password"}
+                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-2">
+                Confirm Password {!staff && '*'}
+              </label>
+              <input
+                type="password"
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                required={!staff}
+                placeholder={staff ? "Leave blank to keep current password" : "Confirm password"}
+                className={`w-full px-3 py-2 bg-white/10 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  formData.confirmPassword && formData.password !== formData.confirmPassword
+                    ? 'border-red-500 focus:ring-red-500'
+                    : formData.confirmPassword && formData.password === formData.confirmPassword
+                    ? 'border-green-500 focus:ring-green-500'
+                    : 'border-white/20'
+                }`}
+              />
+              {formData.confirmPassword && (
+                <p className={`text-xs mt-1 ${
+                  formData.password === formData.confirmPassword
+                    ? 'text-green-400'
+                    : 'text-red-400'
+                }`}>
+                  {formData.password === formData.confirmPassword
+                    ? '✓ Passwords match'
+                    : '✗ Passwords do not match'
+                  }
+                </p>
+              )}
+            </div>
+
+            {/* ID Proof Information */}
+            <div className="md:col-span-2">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-white mb-2">ID Proof Information</h3>
+                <p className="text-sm text-gray-400">Identity verification documents</p>
               </div>
-            )}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">
+                    ID Proof Type *
+                  </label>
+                  <select
+                    value={formData.idProofType}
+                    onChange={(e) => setFormData({ ...formData, idProofType: e.target.value })}
+                    required
+                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select ID proof type</option>
+                    <option value="Aadhar Card">Aadhar Card</option>
+                    <option value="PAN Card">PAN Card</option>
+                    <option value="Passport">Passport</option>
+                    <option value="Driving License">Driving License</option>
+                    <option value="Voter ID">Voter ID</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">
+                    ID Proof Number *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.idProofNumber}
+                    onChange={(e) => setFormData({ ...formData, idProofNumber: e.target.value })}
+                    required
+                    placeholder="Enter ID proof number"
+                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-2">
+                  Upload ID Proof Document *
+                </label>
+                <div className="flex items-center gap-4">
+                  <label className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Choose file
+                    <input
+                      type="file"
+                      name="idProofDocument"
+                      accept="image/*,.pdf"
+                      onChange={(e) => setIdProofDocument(e.target.files?.[0] || null)}
+                      className="hidden"
+                      required={!staff?.idProofDocument}
+                    />
+                  </label>
+                  {idProofDocument && (
+                    <span className="text-sm text-green-400">
+                      ✓ {idProofDocument.name}
+                    </span>
+                  )}
+                  {staff?.idProofDocument && !idProofDocument && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-400">
+                        Current: {staff.idProofDocument.split('/').pop()}
+                      </span>
+                      <a
+                        href={`http://localhost:5001${staff.idProofDocument}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-300 text-sm"
+                      >
+                        View Document
+                      </a>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Max 5MB, Images or PDF only
+                </p>
+              </div>
+            </div>
 
             {/* Job Roles */}
             <div className="md:col-span-2">
@@ -451,6 +627,93 @@ const StaffModal: React.FC<StaffModalProps> = ({ staff, onClose, onSave }) => {
                 ))}
               </div>
             </div>
+
+            {/* Truck Driver Information (conditional) */}
+            {isTruckDriverSelected() && (
+              <div className="md:col-span-2">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-white mb-2">Truck Driver Information</h3>
+                  <p className="text-sm text-gray-400">Details for Truck Driver role</p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-2">
+                      Driving License Number *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.drivingLicenseNumber}
+                      onChange={(e) => setFormData({ ...formData, drivingLicenseNumber: e.target.value })}
+                      required
+                      placeholder="e.g., MH1420110012345"
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-2">
+                      License Expiry Date *
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.drivingLicenseExpiry}
+                      onChange={(e) => setFormData({ ...formData, drivingLicenseExpiry: e.target.value })}
+                      required
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">
+                    Upload Driving License *
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <label className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+                      <Upload className="h-4 w-4" />
+                      Choose license file
+                      <input
+                        type="file"
+                        name="drivingLicenseDocument"
+                        accept="image/*,.pdf"
+                        onChange={(e) => setDrivingLicenseDocument(e.target.files?.[0] || null)}
+                        className="hidden"
+                        required={!staff?.drivingLicenseDocument}
+                      />
+                    </label>
+                    {drivingLicenseDocument && (
+                      <span className="text-sm text-green-400">
+                        ✓ {drivingLicenseDocument.name}
+                      </span>
+                    )}
+                    {staff?.drivingLicenseDocument && !drivingLicenseDocument && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-400">
+                          Current: {staff.drivingLicenseDocument.split('/').pop()}
+                        </span>
+                        <a
+                          href={`http://localhost:5001${staff.drivingLicenseDocument}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-400 hover:text-blue-300 text-sm"
+                        >
+                          View Document
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Max 5MB, Images or PDF only
+                  </p>
+                  <div className="mt-2 p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
+                    <p className="text-xs text-yellow-300">
+                      Note: The driving license must be valid and not expired. Please ensure all details are clearly visible in the uploaded document.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-6 mt-6 border-t border-white/20">

@@ -17,10 +17,12 @@ import jobRoleRoutes from './routes/jobRoles.js';
 import documentTypeRoutes from './routes/documentTypes.js';
 import productRoutes from './routes/products.js';
 import categoryRoutes from './routes/categories.js';
+import subCategoryRoutes from './routes/subCategories.js';
 import unitRoutes from './routes/units.js';
 import salesRoutes from './routes/sales.js';
 import truckRoutes from './routes/trucks.js';
 import routesRoutes from './routes/routes.js';
+import truckTripRoutes from './routes/truckTrips.js';
 import reportsRoutes from './routes/reports.js';
 
 // Middleware
@@ -35,7 +37,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // Create upload directories if they don't exist
 const uploadDirs = [
@@ -43,7 +45,8 @@ const uploadDirs = [
   'uploads/staff/profiles',
   'uploads/staff/documents',
   'uploads/products',
-  'uploads/categories'
+  'uploads/categories',
+  'uploads/subcategories'
 ];
 
 uploadDirs.forEach(dir => {
@@ -90,10 +93,12 @@ app.use('/api/job-roles', authenticateToken, jobRoleRoutes);
 app.use('/api/document-types', authenticateToken, documentTypeRoutes);
 app.use('/api/products', authenticateToken, productRoutes);
 app.use('/api/categories', authenticateToken, categoryRoutes);
+app.use('/api/sub-categories', authenticateToken, subCategoryRoutes);
 app.use('/api/units', authenticateToken, unitRoutes);
 app.use('/api/sales', authenticateToken, salesRoutes);
 app.use('/api/trucks', authenticateToken, truckRoutes);
 app.use('/api/routes', authenticateToken, routesRoutes);
+app.use('/api/truck-trips', authenticateToken, truckTripRoutes);
 app.use('/api/reports', authenticateToken, reportsRoutes);
 
 // Health check
