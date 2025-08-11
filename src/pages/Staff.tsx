@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import StaffModal from '../components/StaffModal';
-
+// Define the Staff interface
 interface Staff {
   _id: string;
   fullName: string;
