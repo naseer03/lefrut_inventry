@@ -238,7 +238,7 @@ const Trip: React.FC = () => {
             <div style="color: #4b5563; font-size: 14px;">
               <p><strong>Vehicle:</strong> ${trip.truckId?.vehicleNumber || 'N/A'}</p>
               <p><strong>Route:</strong> ${trip.routeId?.name || 'N/A'}</p>
-              <p><strong>Date:</strong> ${new Date(trip.tripDate).toLocaleDateString()}</p>
+              <p><strong>Date:</strong> ${trip.tripDate ? new Date(trip.tripDate).toLocaleDateString() : 'N/A'}</p>
             </div>
             <div class="status-badge">${getStatusText(trip.status)}</div>
           </div>
@@ -506,11 +506,13 @@ const Trip: React.FC = () => {
   // Filter trips based on active tab and search
   const filteredTrips = trips.filter(trip => {
     const matchesTab = activeTab === 'all' || trip.status === activeTab;
-    const matchesSearch = trip.truckId.vehicleNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         trip.routeId.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         trip.driverId.fullName.toLowerCase().includes(searchTerm.toLowerCase());
+    const truckStr = (trip.truckId?.vehicleNumber || '').toLowerCase();
+    const routeStr = (trip.routeId?.name || '').toLowerCase();
+    const driverStr = (trip.driverId?.fullName || '').toLowerCase();
+    const searchStr = searchTerm.toLowerCase();
+    const matchesSearch = truckStr.includes(searchStr) || routeStr.includes(searchStr) || driverStr.includes(searchStr);
     const matchesStatus = statusFilter === 'all' || trip.status === statusFilter;
-    const matchesDate = !dateFilter || trip.tripDate === dateFilter;
+    const matchesDate = !dateFilter || (trip.tripDate ? trip.tripDate.split('T')[0] === dateFilter : false);
     
     return matchesTab && matchesSearch && matchesStatus && matchesDate;
   });
@@ -687,20 +689,20 @@ const Trip: React.FC = () => {
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
                       <div>
                         <h3 className="text-xl font-semibold text-white mb-2">
-                          Trip #{trip._id.slice(-6).toUpperCase()}
+                          Trip #{(trip._id || '').slice(-6).toUpperCase()}
                         </h3>
                         <div className="flex items-center gap-4 text-sm text-gray-300">
                           <div className="flex items-center gap-2">
                             <Truck className="h-4 w-4" />
-                            <span>{trip.truckId.vehicleNumber}</span>
+                            <span>{trip.truckId?.vehicleNumber || '-'}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <MapPin className="h-4 w-4" />
-                            <span>{trip.routeId.name}</span>
+                            <span>{trip.routeId?.name || '-'}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4" />
-                            <span>{new Date(trip.tripDate).toLocaleDateString()}</span>
+                            <span>{trip.tripDate ? new Date(trip.tripDate).toLocaleDateString() : '-'}</span>
                           </div>
                         </div>
                       </div>
@@ -718,12 +720,12 @@ const Trip: React.FC = () => {
                           <h4 className="font-semibold text-white">Staff</h4>
                         </div>
                         <div className="space-y-1 text-sm text-gray-300">
-                          <p><span className="text-blue-400">Driver:</span> {trip.driverId.fullName}</p>
+                          <p><span className="text-blue-400">Driver:</span> {trip.driverId?.fullName || '-'}</p>
                           {trip.salespersonId && (
-                            <p><span className="text-green-400">Sales:</span> {trip.salespersonId.fullName}</p>
+                            <p><span className="text-green-400">Sales:</span> {trip.salespersonId?.fullName}</p>
                           )}
                           {trip.helperId && (
-                            <p><span className="text-purple-400">Helper:</span> {trip.helperId.fullName}</p>
+                            <p><span className="text-purple-400">Helper:</span> {trip.helperId?.fullName}</p>
                           )}
                         </div>
                       </div>
@@ -734,8 +736,8 @@ const Trip: React.FC = () => {
                           <h4 className="font-semibold text-white">Items</h4>
                         </div>
                         <div className="space-y-1 text-sm text-gray-300">
-                          <p><span className="text-green-400">Total Items:</span> {trip.totalItems}</p>
-                          <p><span className="text-green-400">Products:</span> {trip.dispatchItems.length}</p>
+                          <p><span className="text-green-400">Total Items:</span> {trip.totalItems ?? 0}</p>
+                          <p><span className="text-green-400">Products:</span> {trip.dispatchItems?.length ?? 0}</p>
                         </div>
                       </div>
                       
@@ -745,7 +747,7 @@ const Trip: React.FC = () => {
                           <h4 className="font-semibold text-white">Value</h4>
                         </div>
                         <div className="space-y-1 text-sm text-gray-300">
-                          <p><span className="text-yellow-400">Total Value:</span> ₹{trip.totalValue.toLocaleString()}</p>
+                          <p><span className="text-yellow-400">Total Value:</span> ₹{(trip.totalValue ?? 0).toLocaleString()}</p>
                           <p><span className="text-yellow-400">Start Time:</span> {trip.startTime}</p>
                         </div>
                       </div>

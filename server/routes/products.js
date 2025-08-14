@@ -33,6 +33,17 @@ const upload = multer({
   }
 });
 
+// Helper: coerce numeric fields
+const coerceNumbers = (data) => {
+  const numericFields = ['purchasePrice','sellingPrice','currentStock','minStockLevel','maxStockLevel'];
+  for (const f of numericFields) {
+    if (data[f] !== undefined && data[f] !== null && data[f] !== '') {
+      const num = Number(data[f]);
+      data[f] = isNaN(num) ? undefined : num;
+    }
+  }
+};
+
 // Get all products
 router.get('/', requirePermission('products', 'view'), async (req, res) => {
   try {
@@ -64,10 +75,33 @@ router.get('/:id', requirePermission('products', 'view'), async (req, res) => {
 // Create product
 router.post('/', requirePermission('products', 'add'), upload.single('productImage'), async (req, res) => {
   try {
-    const productData = req.body;
+    const productData = { ...req.body };
+
+    // Coerce numeric inputs (multipart/form-data sends strings)
+    coerceNumbers(productData);
+
+    // Sanitize optional ObjectId/date fields
+    if (!productData.subCategoryId || productData.subCategoryId === '') {
+      delete productData.subCategoryId; // keep it undefined so schema default/null applies
+    }
+    if (productData.expiryDate === '') {
+      delete productData.expiryDate;
+    }
     
     if (req.file) {
       productData.productImage = '/uploads/products/' + req.file.filename;
+    }
+
+    // Validate required fields explicitly for better UX
+    const errors = [];
+    if (!productData.name || !productData.name.trim()) errors.push('Product name is required');
+    if (!productData.categoryId || productData.categoryId === '') errors.push('Category is required');
+    if (!productData.unitId || productData.unitId === '') errors.push('Unit is required');
+    if (productData.purchasePrice === undefined || productData.purchasePrice === null || isNaN(productData.purchasePrice)) errors.push('Purchase price is required');
+    if (productData.sellingPrice === undefined || productData.sellingPrice === null || isNaN(productData.sellingPrice)) errors.push('Selling price is required');
+
+    if (errors.length > 0) {
+      return res.status(400).json({ message: 'Validation failed', errors });
     }
 
     const product = new Product(productData);
@@ -79,18 +113,33 @@ router.post('/', requirePermission('products', 'add'), upload.single('productIma
     
     res.status(201).json(populatedProduct);
   } catch (error) {
-    if (error.code === 11000) {
-      res.status(400).json({ message: 'Barcode already exists' });
-    } else {
-      res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Create product error:', error);
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map((e) => e.message);
+      return res.status(400).json({ message: 'Validation error', errors });
     }
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'Barcode already exists' });
+    }
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
 // Update product
 router.put('/:id', requirePermission('products', 'update'), upload.single('productImage'), async (req, res) => {
   try {
-    const updateData = req.body;
+    const updateData = { ...req.body };
+
+    // Coerce numeric inputs
+    coerceNumbers(updateData);
+
+    // Sanitize optional ObjectId/date fields
+    if (updateData.subCategoryId === '') {
+      updateData.subCategoryId = null; // explicitly null to clear
+    }
+    if (updateData.expiryDate === '') {
+      updateData.expiryDate = null;
+    }
     
     if (req.file) {
       updateData.productImage = '/uploads/products/' + req.file.filename;
@@ -109,6 +158,14 @@ router.put('/:id', requirePermission('products', 'update'), upload.single('produ
     
     res.json(product);
   } catch (error) {
+    console.error('Update product error:', error);
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map((e) => e.message);
+      return res.status(400).json({ message: 'Validation error', errors });
+    }
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'Barcode already exists' });
+    }
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

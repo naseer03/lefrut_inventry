@@ -23,7 +23,7 @@ interface SubCategory {
   categoryId: {
     _id: string;
     name: string;
-  };
+  } | null;
   subCategoryImage: string;
   isActive: boolean;
   createdAt?: string;
@@ -61,15 +61,15 @@ const Categories: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'categories') {
       const filtered = categories.filter(category =>
-        category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        category.description.toLowerCase().includes(searchTerm.toLowerCase())
+        (category.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (category.description || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredCategories(filtered);
     } else {
       const filtered = subCategories.filter(subCategory =>
-        subCategory.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        subCategory.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        subCategory.categoryId.name.toLowerCase().includes(searchTerm.toLowerCase())
+        (subCategory.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (subCategory.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ((subCategory.categoryId?.name || '').toLowerCase().includes(searchTerm.toLowerCase()))
       );
       setFilteredSubCategories(filtered);
     }
@@ -82,10 +82,12 @@ const Categories: React.FC = () => {
         api.get('/categories'),
         api.get('/sub-categories')
       ]);
-      setCategories(categoriesResponse.data);
-      setSubCategories(subCategoriesResponse.data);
+      setCategories(categoriesResponse.data || []);
+      setSubCategories(subCategoriesResponse.data || []);
     } catch (error) {
       toast.error('Failed to fetch data');
+      setCategories([]);
+      setSubCategories([]);
     } finally {
       setLoading(false);
     }
@@ -152,7 +154,7 @@ const Categories: React.FC = () => {
     // Convert the API response format to the modal expected format
     const modalSubCategory = {
       ...subCategory,
-      categoryId: subCategory.categoryId._id // Convert object to string for modal
+      categoryId: subCategory.categoryId?._id || '' // Convert object to string for modal
     };
     setSelectedSubCategory(modalSubCategory as any);
     setShowSubCategoryModal(true);
@@ -169,7 +171,7 @@ const Categories: React.FC = () => {
   };
 
   const getSubCategoriesForCategory = (categoryId: string) => {
-    return subCategories.filter(sc => sc.categoryId._id === categoryId);
+    return subCategories.filter(sc => (sc.categoryId?._id) === categoryId);
   };
 
   if (loading) {
@@ -286,12 +288,12 @@ const Categories: React.FC = () => {
                             {category.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </div>
-                        <p className="text-gray-300 text-sm mb-3">{category.description}</p>
+                        <p className="text-gray-300 text-sm mb-3">{category.description || ''}</p>
                         
                         {/* Sub-Categories Count */}
                         <div className="flex items-center gap-4 text-sm text-gray-400">
                           <span>{categorySubCategories.length} sub-categories</span>
-                          <span>Created: {new Date(category.createdAt || '').toLocaleDateString()}</span>
+                          <span>Created: {category.createdAt ? new Date(category.createdAt).toLocaleDateString() : '-'}</span>
                         </div>
                       </div>
                     </div>
@@ -411,8 +413,8 @@ const Categories: React.FC = () => {
                       <p className="text-gray-300 text-sm mb-3">{subCategory.description}</p>
                       
                       <div className="flex items-center gap-4 text-sm text-gray-400">
-                        <span>Parent: {subCategory.categoryId.name}</span>
-                        <span>Created: {new Date(subCategory.createdAt || '').toLocaleDateString()}</span>
+                        <span>Parent: {subCategory.categoryId?.name || 'Unknown'}</span>
+                        <span>Created: {subCategory.createdAt ? new Date(subCategory.createdAt).toLocaleDateString() : '-'}</span>
                       </div>
                     </div>
                   </div>

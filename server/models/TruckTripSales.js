@@ -7,6 +7,11 @@ const truckTripSalesSchema = new mongoose.Schema({
     required: false, // Changed from required: true to allow standalone sales
     default: null
   },
+  staffId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Staff',
+    required: true
+  },
   productId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product',
@@ -46,8 +51,8 @@ const truckTripSalesSchema = new mongoose.Schema({
   paymentMode: {
     type: String,
     enum: {
-      values: ['Cash', 'UPI', 'Card'],
-      message: 'Payment mode must be Cash, UPI, or Card'
+      values: ['Cash', 'UPI'],
+      message: 'Payment mode must be Cash or UPI'
     },
     required: true
   },
@@ -172,6 +177,7 @@ truckTripSalesSchema.post('save', function(doc, next) {
 
 // Index for better query performance
 truckTripSalesSchema.index({ tripId: 1 });
+truckTripSalesSchema.index({ staffId: 1 });
 truckTripSalesSchema.index({ productId: 1 });
 truckTripSalesSchema.index({ createdAt: -1 });
 truckTripSalesSchema.index({ paymentStatus: 1 });

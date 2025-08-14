@@ -4,6 +4,7 @@ import Truck from '../models/Truck.js';
 import Route from '../models/Route.js';
 import Staff from '../models/Staff.js';
 import Product from '../models/Product.js';
+import TruckTripSales from '../models/TruckTripSales.js';
 import { requirePermission } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -113,19 +114,41 @@ router.get('/driver-trip-products', async (req, res) => {
       return res.status(404).json({ message: 'No in-progress trip found for this driver' });
     }
 
-    // Format the trip products
-    const tripProducts = trip.dispatchItems.map(item => ({
-      _id: item.itemId._id,
-      name: item.itemId.name,
-      categoryId: item.itemId.categoryId,
-      unitId: item.itemId.unitId,
-      sellingPrice: item.itemId.sellingPrice,
-      currentStock: item.quantity, // Use trip quantity as available stock
-      productImage: item.itemId.productImage,
-      isActive: item.itemId.isActive,
-      tripQuantity: item.quantity,
-      remainingQuantity: item.quantity // This will be updated based on sales
-    }));
+    // Build product IDs list from dispatch items
+    const dispatchedProductIds = trip.dispatchItems.map(item => item.itemId?._id || item.itemId);
+
+    // Aggregate sales to compute quantities sold per product for this trip
+    const salesByProduct = await TruckTripSales.aggregate([
+      { $match: { tripId: trip._id, isActive: true, productId: { $in: dispatchedProductIds } } },
+      { $group: { _id: '$productId', sold: { $sum: '$quantitySold' } } }
+    ]);
+
+    const productIdToSoldMap = new Map();
+    for (const s of salesByProduct) {
+      productIdToSoldMap.set(String(s._id), s.sold || 0);
+    }
+
+    // Format the trip products, calculating remaining based on sales
+    const tripProducts = trip.dispatchItems.map(item => {
+      const productDoc = item.itemId; // populated
+      const productIdStr = String(productDoc._id);
+      const dispatchedQty = item.quantity;
+      const soldQty = productIdToSoldMap.get(productIdStr) || 0;
+      const remainingQty = Math.max(dispatchedQty - soldQty, 0);
+
+      return {
+        _id: productDoc._id,
+        name: productDoc.name,
+        categoryId: productDoc.categoryId,
+        unitId: productDoc.unitId,
+        sellingPrice: productDoc.sellingPrice,
+        currentStock: remainingQty, // Use remaining as available stock in trip mode
+        productImage: productDoc.productImage,
+        isActive: productDoc.isActive,
+        tripQuantity: dispatchedQty,
+        remainingQuantity: remainingQty
+      };
+    });
 
     res.json({
       tripId: trip._id,

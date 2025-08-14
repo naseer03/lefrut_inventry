@@ -56,6 +56,18 @@ const Sales: React.FC = () => {
     endDate: ''
   });
 
+  // Edit Modal State
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingSale, setEditingSale] = useState<Sale | null>(null);
+  const [editForm, setEditForm] = useState({
+    quantitySold: 1,
+    unitPrice: 0,
+    paymentMode: 'Cash' as 'Cash' | 'UPI',
+    paymentStatus: 'paid' as 'paid' | 'pending' | 'failed' | 'manual_paid',
+    customerName: '',
+    customerPhone: ''
+  });
+
   useEffect(() => {
     fetchSales();
     fetchSummary();
@@ -150,6 +162,47 @@ const Sales: React.FC = () => {
         color: 'bg-purple-500/20 text-purple-300',
         date: 'Standalone'
       };
+    }
+  };
+
+  const openEdit = (sale: Sale) => {
+    setEditingSale(sale);
+    setEditForm({
+      quantitySold: sale.quantitySold,
+      unitPrice: sale.unitPrice,
+      paymentMode: (sale.paymentMode === 'UPI' ? 'UPI' : 'Cash'),
+      paymentStatus: (['paid','pending','failed','manual_paid'].includes(sale.paymentStatus) ? sale.paymentStatus as any : 'paid'),
+      customerName: sale.customerName || '',
+      customerPhone: sale.customerPhone || ''
+    });
+    setEditOpen(true);
+  };
+
+  const saveEdit = async () => {
+    if (!editingSale) return;
+    try {
+      if (editForm.quantitySold <= 0) throw new Error('Quantity must be greater than 0');
+      if (editForm.unitPrice <= 0) throw new Error('Unit price must be greater than 0');
+
+      const payload = {
+        quantitySold: editForm.quantitySold,
+        unitPrice: editForm.unitPrice,
+        totalAmount: editForm.quantitySold * editForm.unitPrice,
+        paymentMode: editForm.paymentMode,
+        paymentStatus: editForm.paymentStatus,
+        customerName: editForm.customerName || null,
+        customerPhone: editForm.customerPhone || null
+      };
+
+      await api.put(`/sales/${editingSale._id}`, payload);
+      toast.success('Sale updated successfully');
+      setEditOpen(false);
+      setEditingSale(null);
+      await fetchSales();
+      await fetchSummary();
+    } catch (error: any) {
+      const message = error.response?.data?.message || error.message || 'Failed to update sale';
+      toast.error(message);
     }
   };
 
@@ -298,6 +351,9 @@ const Sales: React.FC = () => {
                   <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Status</th>
                   <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Type</th>
                   <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Date</th>
+                  {hasPermission('sales','update') && (
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/10">
@@ -337,6 +393,16 @@ const Sales: React.FC = () => {
                       <td className="px-6 py-4 text-sm text-gray-300">
                         {new Date(sale.createdAt).toLocaleDateString()}
                       </td>
+                      {hasPermission('sales','update') && (
+                        <td className="px-6 py-4 text-sm">
+                          <button
+                            onClick={() => openEdit(sale)}
+                            className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -355,6 +421,99 @@ const Sales: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Edit Sale Modal */}
+      {editOpen && editingSale && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl w-full max-w-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-white">Edit Sale - {editingSale.productId.name}</h3>
+              <button className="text-gray-300 hover:text-white" onClick={() => setEditOpen(false)}>✕</button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Quantity Sold</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={editForm.quantitySold}
+                  onChange={(e) => setEditForm({ ...editForm, quantitySold: Number(e.target.value) })}
+                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text_gray-300 mb-1">Unit Price</label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={editForm.unitPrice}
+                  onChange={(e) => setEditForm({ ...editForm, unitPrice: Number(e.target.value) })}
+                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Payment Mode</label>
+                <select
+                  value={editForm.paymentMode}
+                  onChange={(e) => setEditForm({ ...editForm, paymentMode: e.target.value as 'Cash' | 'UPI' })}
+                  className="w-full px-3 py-2 bg_white/10 border border-white/20 rounded-lg text-white focus:outline-none"
+                >
+                  <option value="Cash">Cash</option>
+                  <option value="UPI">UPI</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Payment Status</label>
+                <select
+                  value={editForm.paymentStatus}
+                  onChange={(e) => setEditForm({ ...editForm, paymentStatus: e.target.value as any })}
+                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none"
+                >
+                  <option value="paid">paid</option>
+                  <option value="pending">pending</option>
+                  <option value="failed">failed</option>
+                  <option value="manual_paid">manual_paid</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Customer Name</label>
+                <input
+                  type="text"
+                  value={editForm.customerName}
+                  onChange={(e) => setEditForm({ ...editForm, customerName: e.target.value })}
+                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Customer Phone</label>
+                <input
+                  type="tel"
+                  value={editForm.customerPhone}
+                  onChange={(e) => setEditForm({ ...editForm, customerPhone: e.target.value })}
+                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setEditOpen(false)}
+                className="px-4 py-2 rounded border border-white/20 text-gray-200 hover:bg-white/10"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveEdit}
+                className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 };

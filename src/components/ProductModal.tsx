@@ -229,6 +229,28 @@ const ProductModal: React.FC<ProductModalProps> = ({ product, onClose, onSave })
             </div>
           </div>
 
+          {/* Unit row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-2">
+                Unit
+              </label>
+              <select
+                value={formData.unitId}
+                onChange={(e) => setFormData({ ...formData, unitId: e.target.value })}
+                required
+                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select Unit</option>
+                {units.map((unit) => (
+                  <option key={unit._id} value={unit._id}>
+                    {unit.name} ({unit.symbol})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-200 mb-2">

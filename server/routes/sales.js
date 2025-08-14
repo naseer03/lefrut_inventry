@@ -30,6 +30,26 @@ router.get('/trip/:tripId', requirePermission('sales', 'view'), async (req, res)
   }
 });
 
+// Get sales by product within a trip (and optionally by staff)
+router.get('/trip/:tripId/product/:productId', requirePermission('sales', 'view'), async (req, res) => {
+  try {
+    const { tripId, productId } = req.params;
+    const filter = { tripId, productId };
+    if (req.query.staffId) {
+      filter.staffId = req.query.staffId;
+    }
+
+    const sales = await TruckTripSales.find(filter)
+      .populate('productId', 'name sellingPrice')
+      .sort({ createdAt: -1 });
+
+    res.json(sales);
+  } catch (error) {
+    console.error('Get product sales error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Create sale (Mobile-friendly endpoint)
 router.post('/', requirePermission('sales', 'add'), async (req, res) => {
   try {
@@ -56,8 +76,8 @@ router.post('/', requirePermission('sales', 'add'), async (req, res) => {
       return res.status(400).json({ message: 'Valid quantity sold is required' });
     }
 
-    if (!paymentMode || !['Cash', 'UPI', 'Card'].includes(paymentMode)) {
-      return res.status(400).json({ message: 'Valid payment mode is required (Cash, UPI, or Card)' });
+    if (!paymentMode || !['Cash', 'UPI'].includes(paymentMode)) {
+      return res.status(400).json({ message: 'Valid payment mode is required (Cash or UPI)' });
     }
 
     // Get product details for pricing and stock check
@@ -80,6 +100,7 @@ router.post('/', requirePermission('sales', 'add'), async (req, res) => {
     // Create sale record
     const saleData = {
       tripId: tripId || null, // Allow null for standalone sales
+      staffId: req.user.role === 'staff' ? req.user._id : (req.body.staffId || null),
       productId,
       quantitySold: Number(quantitySold),
       unitPrice: Number(finalUnitPrice),
@@ -89,6 +110,10 @@ router.post('/', requirePermission('sales', 'add'), async (req, res) => {
       customerName: customerName?.trim() || null,
       customerPhone: customerPhone?.trim() || null
     };
+
+    if (!saleData.staffId) {
+      return res.status(400).json({ message: 'Staff ID is required' });
+    }
 
     console.log('Creating sale with processed data:', saleData);
 

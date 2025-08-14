@@ -46,7 +46,7 @@ export const authenticateToken = async (req, res, next) => {
         lastName: staff.fullName.split(' ').slice(1).join(' ') || '',
         avatar: staff.profilePhoto || '',
         role: 'staff',
-        permissions: ['staff:view', 'staff:update', 'trips:view', 'trips:create', 'trips:update', 'sales:add', 'sales:view', 'products:view'],
+        permissions: ['staff:view', 'staff:update', 'trips:view', 'trips:create', 'trips:update', 'sales:add', 'sales:view', 'products:view', 'categories:view'],
         isActive: true,
         staffInfo: {
           id: staff._id,
@@ -76,6 +76,11 @@ export const authenticateToken = async (req, res, next) => {
 
 export const requirePermission = (module, action) => {
   return (req, res, next) => {
+    // Always allow admins
+    if (req.user && req.user.role === 'admin') {
+      return next();
+    }
+
     // For staff users, check permissions differently
     if (req.user.role === 'staff') {
       const permissionString = `${module}:${action}`;
